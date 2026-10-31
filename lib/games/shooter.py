@@ -40,13 +40,13 @@ BOT_LEVELS = {
         "dodge": 30,
     },
     "hard": {
-        "speed": 2,
+        "speed": 1,
         "think_ms": 150,
         "aim_error": 3,
-        "fire_range": 7,
-        "cooldown": 450,
-        "fire_chance": 100,
-        "dodge": 60,
+        "fire_range": 6,
+        "cooldown": 500,
+        "fire_chance": 90,
+        "dodge": 50,
     },
 }
 
@@ -552,14 +552,17 @@ def run_single_player(pet):
     return None
 
 
-# While searching: your ID (so others can pick you), ". .. ..." and how to cancel
+# While searching: your ID (so others can pick you), ". .. ..."
 def search_text():
     me = my_id()
-    return tuple(((me, 16), (dots, 28)) for dots in ("   ", ".  ", ".. ", "..."))
+    return tuple(((me, 23), (dots, 33)) for dots in (".    ", "..   ", "...  ", ".... ", "....."))
 
 
-# While waiting for the person you picked to pick you too
-WAIT_TEXT = tuple(((w, 24), ("L: cancel", 40)) for w in ("waiting  ", "waiting. ", "waiting.."))
+def wait_text():
+    me = my_id()
+    return tuple(((me, 23), (w, 33)) for w in ("waiting  ", "waiting. ", "waiting.."))
+
+
 CONNECTED_TEXT = "connected"
 CONNECTED_MS = 1000  # "connected" stays up this long before the game
 AGAIN, BACK = "search again", "back"
@@ -608,7 +611,7 @@ def run_two_players(pet):
         if choice is None:
             break
         # 3. wait until they picked us too
-        anim = loading_screen.Animation(text=WAIT_TEXT, intro=False)
+        anim = loading_screen.Animation(text=wait_text(), intro=False)
         try:
             paired = lobby.wait_for(choice, cancel, anim.tick)
             if paired:
