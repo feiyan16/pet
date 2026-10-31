@@ -46,6 +46,7 @@ def log_boot():
     try:
         import machine
 
+        cause_code = machine.reset_cause()
         causes = {
             machine.PWRON_RESET: "power on",
             machine.HARD_RESET: "hard reset",
@@ -53,11 +54,12 @@ def log_boot():
             machine.DEEPSLEEP_RESET: "deep sleep wake",
             machine.SOFT_RESET: "soft reset",
         }
-        cause = causes.get(machine.reset_cause(), machine.reset_cause())
+        cause = causes.get(cause_code, cause_code)
     except (ImportError, AttributeError):
         cause = "unknown"
+        cause_code = None
     log(WARN, "---- boot:", cause)  # WARN so every boot is also marked in the file
-    return cause
+    return cause_code
 
 
 def _write(text, err=None):

@@ -5,7 +5,6 @@ import connect  # Wi-Fi driver first, while system memory is free
 
 gc.collect()
 
-import esp32
 import errno
 import json
 import machine
@@ -156,10 +155,6 @@ pet_face = face_from_json(pet_text) if pet_text is not None else None
 gc.collect()
 
 
-if cause == machine.PWRON_RESET:
-    loading_screen.run(text=HELLO_TEXT, intro_text=TYPED_HELLO, pause_ms=HELLO_PAUSE_MS, min_ms=3000)
-
-
 if pet_face is None:
     oled.poweron()  # in case deep sleep left it off
     # 1. "hello!" typed over the star intro, a 3 s pause, then load everything behind the stars
@@ -185,6 +180,9 @@ if pet_face is None:
     oled.poweroff()
     machine.deepsleep(3000)  # restart into pet mode after 3 s
 else:
+    if cause == machine.PWRON_RESET:
+        loading_screen.run(text=HELLO_TEXT, intro_text=TYPED_HELLO, pause_ms=HELLO_PAUSE_MS)
+
     log(INFO, "pet loaded:", pet_face.name)
     pet_face.sleep()  # shown asleep while pet mode loads
     for _ in pet_mode_loading():
