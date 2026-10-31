@@ -1,34 +1,40 @@
 # main.py - start-up: Wi-Fi driver first, then either the pet picker (first start)
 #           or the saved pet (every other start, including waking from deep sleep)
 import gc
-import connect                     # Wi-Fi driver first, while system memory is free
+import connect  # Wi-Fi driver first, while system memory is free
+
 gc.collect()
 
+import esp32
 import errno
 import json
 import machine
 import time
 from peripherals import oled, OLED_H
 from utils import centred, wait_release
-from ui import loading_screen      # small: its frames are read from flash only while it plays
+from ui import (
+    loading_screen,
+)  # small: its frames are read from flash only while it plays
+
 gc.collect()
 from logger import log, log_exception, INFO, WARN, log_boot
-log_boot()
+
+cause = log_boot()
 
 
-HELLO_TEXT = loading_screen.typed("hello!", 350)   # typed during the star intro, 1 letter / 350 ms
-HELLO_PAUSE_MS = 3000                       # then the whole word stays up, stars twinkling, before loading
+HELLO_TEXT = "hello!"
+TYPED_HELLO = loading_screen.typed("hello!", 350)  # typed during the star intro, 1 letter / 350 ms,
+HELLO_PAUSE_MS = 3000  # then the whole word stays up, stars twinkling, before loading
 # Same width (trailing space) so the centred text doesn't shift as the dots change
 LOADING_TEXT = ("loading. ", "loading..")
 
 # Shown before the pet picker. Max 16 characters per line (8 px per character).
-INSTRUCTIONS = ("Choose your pet", "L: <  R: >", "L + R: select")
-INSTRUCTIONS_MS = 5000
+INSTRUCTIONS = ("Choose your pet", "L + R: select")
+INSTRUCTIONS_MS = 3000
 
 
 def show_instructions(lines=INSTRUCTIONS, ms=INSTRUCTIONS_MS):
     """Centred lines, 12 px apart, in the middle of the screen, for ms milliseconds."""
-    oled.fill(0)
     y = (OLED_H - (len(lines) * 12 - 4)) // 2
     for line in lines:
         centred(line, y)
@@ -45,7 +51,7 @@ def read_pet_json():
         with open("pet.json") as f:
             return f.read()
     except OSError as err:
-        if err.args[0] == errno.ENOENT:          # no file yet: first start
+        if err.args[0] == errno.ENOENT:  # no file yet: first start
             log(INFO, "no pet.json: first start")
             return None
         raise
@@ -53,12 +59,21 @@ def read_pet_json():
 
 def face_from_json(text):
     """The saved face, or None if pet.json is damaged or outdated."""
-    from roboface.roboface import RoboFace, HalfMoonFace, CyclopsFace   # the .mpy: no compiling
-    classes = {"RoboFace": RoboFace, "HalfMoonFace": HalfMoonFace, "CyclopsFace": CyclopsFace}
+    from roboface.roboface import (
+        RoboFace,
+        HalfMoonFace,
+        CyclopsFace,
+    )  # the .mpy: no compiling
+
+    classes = {
+        "RoboFace": RoboFace,
+        "HalfMoonFace": HalfMoonFace,
+        "CyclopsFace": CyclopsFace,
+    }
     try:
         cls = classes[json.loads(text)["class"]]
         return cls.from_json(text, oled, on_show=lambda face: oled.show())
-    except (ValueError, KeyError) as err:               # damaged or outdated file: choose again
+    except (ValueError, KeyError) as err:  # damaged or outdated file: choose again
         log(WARN, "pet.json unusable:", repr(err))
         return None
 
@@ -88,25 +103,32 @@ def face_from_json(text):
 # this, at the very top of main.py.
 # -----------------------------------------------------------------------------
 def first_start_loading():
-    import roboface.roboface      # the face library (.mpy)
+    import roboface.roboface  # the face library (.mpy)
+
     gc.collect()
     yield
     import ui.menu
+
     gc.collect()
     yield
     import ui.popup
+
     gc.collect()
     yield
     import games.jump
+
     gc.collect()
     yield
     import games.shooter
+
     gc.collect()
     yield
     import pet.pet_mode
+
     gc.collect()
     yield
     import pet.choose_pet
+
     gc.collect()
     yield
 
@@ -118,18 +140,23 @@ def first_start_loading():
 # -----------------------------------------------------------------------------
 def pet_mode_loading():
     import ui.menu
+
     gc.collect()
     yield
     import ui.popup
+
     gc.collect()
     yield
     import games.jump
+
     gc.collect()
     yield
     import games.shooter
+
     gc.collect()
     yield
     import pet.pet_mode
+
     gc.collect()
     yield
 
@@ -138,6 +165,11 @@ pet_text = read_pet_json()
 pet_face = face_from_json(pet_text) if pet_text is not None else None
 gc.collect()
 
+
+if cause == machine.PWRON_RESET:
+    loading_screen.run(text=HELLO_TEXT, intro_text=TYPED_HELLO, pause_ms=HELLO_PAUSE_MS, min_ms=3000)
+
+
 if pet_face is None:
     oled.poweron()  # in case deep sleep left it off
     # 1. "hello!" typed over the star intro, a 3 s pause, then load everything behind the stars
@@ -145,32 +177,38 @@ if pet_face is None:
     #    "loading failed", prints the traceback, and stops here instead of
     #    carrying on half-loaded.
     try:
-        loading_screen.run(first_start_loading, text=LOADING_TEXT, intro_text=HELLO_TEXT,
-                           pause_ms=HELLO_PAUSE_MS, on_error="raise")
+        loading_screen.run(
+            first_start_loading,
+            text=LOADING_TEXT,
+            intro_text=TYPED_HELLO,
+            pause_ms=HELLO_PAUSE_MS,
+            on_error="raise",
+        )
     except Exception as err:
         log_exception(err, "first-start loading")
         raise
     # 2. Everything is loaded now: this import is instant.
     from pet.choose_pet import ChoosePet
+
     gc.collect()
-    # 3. How to choose, for 5 s; then choose the pet, then restart into pet mode.
+    # 3. How to choose, for 5s; then choose the pet, then restart into pet mode.
     show_instructions()
-    wait_release()                                   # a finger still down isn't a choice
+    wait_release()  # a finger still down isn't a choice
     ChoosePet().run()
     log(INFO, "pet chosen, restarting into pet mode")
     oled.poweroff()
-    machine.deepsleep(3000)                          # restart into pet mode after 3 s
+    machine.deepsleep(3000)  # restart into pet mode after 3 s
 else:
     log(INFO, "pet loaded:", pet_face.name)
-    loading_screen.run(text=LOADING_TEXT, intro_text=HELLO_TEXT, pause_ms=HELLO_PAUSE_MS)
-    pet_face.sleep()                                 # shown asleep while pet mode loads
+    pet_face.sleep()  # shown asleep while pet mode loads
     for _ in pet_mode_loading():
-        pet_face.update()                            # the Zzz moves on between imports
-    from pet.pet_mode import PetMode                 # already loaded: instant
+        pet_face.update()  # the Zzz moves on between imports
+    from pet.pet_mode import PetMode  # already loaded: instant
+
     gc.collect()
     app = PetMode(pet_face)
     try:
-        app.wake()                                       # groggy wake-up animation
+        app.wake()  # groggy wake-up animation
         app.run()
     except Exception as err:
         log_exception(err, "pet mode crashed")
