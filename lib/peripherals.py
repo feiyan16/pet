@@ -1,7 +1,6 @@
 from machine import Pin, I2C
 from ssd1306 import SSD1306_I2C
 
-
 left_btn = Pin(3, Pin.IN)
 right_btn = Pin(2, Pin.IN)
 

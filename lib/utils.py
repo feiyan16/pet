@@ -12,7 +12,7 @@ class Choice:
 
 
 def centred(text, y):
-    oled.text(text, (OLED_W - len(text) * 8) // 2, y)   # built-in font: 8 px per character
+    oled.text(text, (OLED_W - len(text) * 8) // 2, y)  # built-in font: 8 px per character
 
 
 def back(optional_args=None):
@@ -46,7 +46,7 @@ def btn_handler(l_value, r_value, l_pressed, r_pressed, l_action=None, r_action=
     return False, l_pressed, r_pressed
 
 
-SCROLL_TIMEOUT_MS = 5000    # a menu/popup with no touch for this long closes by itself
+SCROLL_TIMEOUT_MS = 5000  # a menu/popup with no touch for this long closes by itself
 
 
 def scroll(menu, timeout_ms=SCROLL_TIMEOUT_MS, on_idle=None):
@@ -64,7 +64,7 @@ def scroll(menu, timeout_ms=SCROLL_TIMEOUT_MS, on_idle=None):
     while True:
         l, r = left_btn.value(), right_btn.value()
         if l or r:
-            last_touch = time.ticks_ms()        # any touch restarts the 5 s
+            last_touch = time.ticks_ms()  # any touch restarts the 5 s
 
         selected, l_prsd, r_prsd = btn_handler(l, r, l_prsd, r_prsd, l_action=menu.prev, r_action=menu.next)
 
@@ -75,7 +75,7 @@ def scroll(menu, timeout_ms=SCROLL_TIMEOUT_MS, on_idle=None):
 
         if timeout_ms is not None and time.ticks_diff(time.ticks_ms(), last_touch) >= timeout_ms:
             log(INFO, "menu timed out: nothing selected")
-            return False                        # timed out: nothing selected
+            return False  # timed out: nothing selected
 
         if on_idle is not None:
             on_idle()
@@ -90,7 +90,7 @@ def wait_release():
 
 # the countdown star is the shared star from bitmaps/stars.py (11 x 10 px)
 _star_fb = framebuf.FrameBuffer(stars.STAR, stars.STAR_W, stars.STAR_H, framebuf.MONO_HLSB)
-STAR_GAP = 8                # space between the countdown stars (px)
+STAR_GAP = 8  # space between the countdown stars (px)
 
 
 def countdown(ready="READY", ready_ms=700, count=3, step_ms=700):
@@ -99,17 +99,17 @@ def countdown(ready="READY", ready_ms=700, count=3, step_ms=700):
     When the last star is gone the game starts. ready=None skips the READY frame."""
     if ready:
         oled.fill(0)
-        centred(ready, 28)                    # middle row (built-in font, 8 px)
+        centred(ready, 28)  # middle row (built-in font, 8 px)
         oled.show()
         time.sleep_ms(ready_ms)
     total_w = count * stars.STAR_W + (count - 1) * STAR_GAP
-    x0 = (OLED_W - total_w) // 2              # the stars stay in place as they go
+    x0 = (OLED_W - total_w) // 2  # the stars stay in place as they go
     y = (OLED_H - stars.STAR_H) // 2
-    for left in range(count, 0, -1):          # 3 stars, then 2, then 1
+    for left in range(count, 0, -1):  # 3 stars, then 2, then 1
         oled.fill(0)
         for i in range(left):
             oled.blit(_star_fb, x0 + i * (stars.STAR_W + STAR_GAP), y, 0)
         oled.show()
         time.sleep_ms(step_ms)
-    oled.fill(0)                              # all gone: go!
+    oled.fill(0)  # all gone: go!
     oled.show()

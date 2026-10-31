@@ -20,39 +20,39 @@ def placeholder(w, h):
     buf = bytearray(rb * h)
     for y in range(h):
         for x in range(w):
-            if y == 0 or y == h - 1 or x == 0 or x == w - 1:      # border pixels only
+            if y == 0 or y == h - 1 or x == 0 or x == w - 1:  # border pixels only
                 buf[y * rb + x // 8] |= 0x80 >> (x % 8)
     return (buf, w, h)
 
 
 OBSTACLES = [
-    placeholder(6, 12) + (0,),     # small cactus
-    placeholder(12, 10) + (0,),    # wide, low cactus
-    placeholder(7, 16) + (0,),     # tall cactus
+    placeholder(6, 12) + (0,),  # small cactus
+    placeholder(12, 10) + (0,),  # wide, low cactus
+    placeholder(7, 16) + (0,),  # tall cactus
 ]
 obstacle_fbs = [framebuf.FrameBuffer(o[0], o[1], o[2], framebuf.MONO_HLSB) for o in OBSTACLES]
 
 
 # ---------------------------------------------------------------- background tile
 # The 64 x 40 sky tile is in bitmaps/sky.py, repeated across the sky and scrolled slowly.
-STAR_Y = 10                    # sky band rows 10-49
-STAR_PARALLAX = 0.25           # stars move at 1/4 of the ground speed (feels far away)
+STAR_Y = 10  # sky band rows 10-49
+STAR_PARALLAX = 0.25  # stars move at 1/4 of the ground speed (feels far away)
 star_fb = framebuf.FrameBuffer(sky.SKY, sky.SKY_W, sky.SKY_H, framebuf.MONO_HLSB)
 
 
-GROUND_Y = 56                  # the ground line; feet stand on the row above it
-DINO_X = 10                    # the dino's left edge (it never moves sideways)
-GRAVITY = 0.6                  # added to the fall speed every frame
-JUMP_SPEED = -6.5              # upward speed at take-off (more negative = higher)
-SHORT_HOP_SPEED = -3.0         # releasing the pad early cuts the rise to this
-START_SPEED = 3.0              # ground scroll, pixels per frame
+GROUND_Y = 56  # the ground line; feet stand on the row above it
+DINO_X = 10  # the dino's left edge (it never moves sideways)
+GRAVITY = 0.6  # added to the fall speed every frame
+JUMP_SPEED = -6.5  # upward speed at take-off (more negative = higher)
+SHORT_HOP_SPEED = -3.0  # releasing the pad early cuts the rise to this
+START_SPEED = 3.0  # ground scroll, pixels per frame
 MAX_SPEED = 7.0
-SPEED_STEP = 0.5               # added every SPEED_EVERY frames
+SPEED_STEP = 0.5  # added every SPEED_EVERY frames
 SPEED_EVERY = 300
-GAP_MIN, GAP_MAX = 28, 50      # space between obstacles, in frames of travel (a full jump lasts 21)
-HIT_MARGIN = 2                 # shrinks the dino's hitbox so near misses feel fair
-RUN_FRAME_TICKS = 4            # frames between run-animation steps
-FRAME_MS = 33                  # about 30 frames per second
+GAP_MIN, GAP_MAX = (28, 50)  # space between obstacles, in frames of travel (a full jump lasts 21)
+HIT_MARGIN = 2  # shrinks the dino's hitbox so near misses feel fair
+RUN_FRAME_TICKS = 4  # frames between run-animation steps
+FRAME_MS = 33  # about 30 frames per second
 
 
 class Dino:
@@ -60,21 +60,21 @@ class Dino:
         self.run_fbs = [framebuf.FrameBuffer(character, w, h, framebuf.MONO_HLSB)]
         self.jump_fb = self.run_fbs[0]
         self.w, self.h = w, h
-        self.stand_y = GROUND_Y - h      # was the global STAND_Y
-        self.y = self.stand_y               # top row (a float while jumping)
-        self.vy = 0.0                  # vertical speed: negative = going up
+        self.stand_y = GROUND_Y - h  # was the global STAND_Y
+        self.y = self.stand_y  # top row (a float while jumping)
+        self.vy = 0.0  # vertical speed: negative = going up
 
     def on_ground(self):
         return self.y >= self.stand_y
 
     def update(self, jump_tapped, jump_held):
         if jump_tapped and self.on_ground():
-            self.vy = JUMP_SPEED                       # take off
+            self.vy = JUMP_SPEED  # take off
         if not jump_held and self.vy < SHORT_HOP_SPEED:
-            self.vy = SHORT_HOP_SPEED                  # let go early = shorter jump
-        self.vy += GRAVITY                             # gravity pulls down every frame
+            self.vy = SHORT_HOP_SPEED  # let go early = shorter jump
+        self.vy += GRAVITY  # gravity pulls down every frame
         self.y += self.vy
-        if self.y >= self.stand_y:                          # landed
+        if self.y >= self.stand_y:  # landed
             self.y = self.stand_y
             self.vy = 0.0
 
@@ -86,14 +86,14 @@ def overlap(ax, ay, aw, ah, bx, by, bw, bh):
 
 def play(dino):
     """Plays until the dino crashes or the left pad is touched."""
-    obstacles = []                     # each: [x, type index]
+    obstacles = []  # each: [x, type index]
     speed = START_SPEED
-    next_gap = 0                       # 0 = spawn the first obstacle straight away
-    since_spawn = 0.0                  # pixels scrolled since the last obstacle appeared
-    score = 0                          # counts frames; shown as score // 5
+    next_gap = 0  # 0 = spawn the first obstacle straight away
+    since_spawn = 0.0  # pixels scrolled since the last obstacle appeared
+    score = 0  # counts frames; shown as score // 5
     star_offset = 0.0
     ground_offset = 0
-    right_was = True                   # the tap that started the game must not jump
+    right_was = True  # the tap that started the game must not jump
     left_was = True
 
     while True:
@@ -186,7 +186,7 @@ def run(pet):
     scroll(ready_popup)
 
     while play_game.value:
-        countdown()                          # READY, then 3 stars disappearing one by one
+        countdown()  # READY, then 3 stars disappearing one by one
         result, score = play(Dino(*pet.mini()))
         if result == Result.EXIT:
             break

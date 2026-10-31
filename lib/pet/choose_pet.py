@@ -5,7 +5,6 @@ from roboface.roboface import *
 from bitmaps.eyes import default, basic, bean, halfmoon, visor, pointed, scribble
 from logger import log, log_exception, INFO
 
-
 eye_options = [
     ("oblong", default, RoboFace),
     ("oval", basic, RoboFace),
@@ -13,7 +12,7 @@ eye_options = [
     ("halfmoon", halfmoon, HalfMoonFace),
     ("visor", visor, CyclopsFace),
     ("pointed", pointed, RoboFace),
-    ("scribble", scribble, RoboFace),    # left and right eyes drawn differently
+    ("scribble", scribble, RoboFace),  # left and right eyes drawn differently
 ]
 
 
@@ -32,9 +31,16 @@ class ChoosePet:
         robo_eyes = eye_options[self.idx][1]
         robo_cls = eye_options[self.idx][2]
         self.pet = robo_cls(
-            oled, OLED_W, OLED_H, robo_eyes.EYE, robo_eyes.EYE_W, robo_eyes.EYE_H,
-            name=eye_options[self.idx][0], frame_rate=50, on_show=face_show,
-            right_eye=getattr(robo_eyes, "RIGHT_EYE", None)   # only scribble has one; others mirror
+            oled,
+            OLED_W,
+            OLED_H,
+            robo_eyes.EYE,
+            robo_eyes.EYE_W,
+            robo_eyes.EYE_H,
+            name=eye_options[self.idx][0],
+            frame_rate=50,
+            on_show=face_show,
+            right_eye=getattr(robo_eyes, "RIGHT_EYE", None),  # only scribble has one; others mirror
         )
 
     def prev(self):

@@ -12,7 +12,6 @@ from ui.popup import Popup
 from ui import loading_screen
 from logger import log, INFO, WARN
 
-
 # Bot difficulty. Pick one with DIFFICULTY below.
 #   speed:     pixels per frame the bot moves
 #   think_ms:  how often it picks a new target (slower = more reaction delay)
@@ -22,13 +21,37 @@ from logger import log, INFO, WARN
 #   fire_chance: % chance it actually shoots when lined up (a skipped shot still waits a cooldown)
 #   dodge:     % chance it notices one of your bullets and moves away
 BOT_LEVELS = {
-    "easy":   {"speed": 1, "think_ms": 450, "aim_error": 12, "fire_range": 3, "cooldown": 1000, "fire_chance": 50,  "dodge": 10},
-    "normal": {"speed": 1, "think_ms": 250, "aim_error": 6,  "fire_range": 5, "cooldown": 700,  "fire_chance": 75,  "dodge": 30},
-    "hard":   {"speed": 2, "think_ms": 150, "aim_error": 3,  "fire_range": 7, "cooldown": 450,  "fire_chance": 100, "dodge": 60},
+    "easy": {
+        "speed": 1,
+        "think_ms": 450,
+        "aim_error": 12,
+        "fire_range": 3,
+        "cooldown": 1000,
+        "fire_chance": 50,
+        "dodge": 10,
+    },
+    "normal": {
+        "speed": 1,
+        "think_ms": 250,
+        "aim_error": 6,
+        "fire_range": 5,
+        "cooldown": 700,
+        "fire_chance": 75,
+        "dodge": 30,
+    },
+    "hard": {
+        "speed": 2,
+        "think_ms": 150,
+        "aim_error": 3,
+        "fire_range": 7,
+        "cooldown": 450,
+        "fire_chance": 100,
+        "dodge": 60,
+    },
 }
 
-PING_EVERY_MS = 1000        # heartbeat: tell the opponent "still here" once a second
-LINK_TIMEOUT_MS = 3000      # nothing heard for this long = the other keychain is gone
+PING_EVERY_MS = 1000  # heartbeat: tell the opponent "still here" once a second
+LINK_TIMEOUT_MS = 3000  # nothing heard for this long = the other keychain is gone
 IDLE_MS = 10000
 FRAME_MS = 33  # about 30 frames per second
 PLAYER_SPEED = 2  # move 2 pixels per movement
@@ -48,8 +71,8 @@ MAX_H = 9
 # y = 55-63   you (bottom-aligned)
 
 LIFE_Y = 0
-LIFE_GAP = 2                            # space between the life stars (px)
-OPP_Y = LIFE_Y + stars.STAR_5_H + 2     # 2-pixel gap under the stars -> 7
+LIFE_GAP = 2  # space between the life stars (px)
+OPP_Y = LIFE_Y + stars.STAR_5_H + 2  # 2-pixel gap under the stars -> 7
 
 life_fb = framebuf.FrameBuffer(stars.STAR_5, stars.STAR_5_W, stars.STAR_5_H, framebuf.MONO_HLSB)
 bullet_fb = framebuf.FrameBuffer(bullets.BULLET, bullets.BULLET_W, bullets.BULLET_H, framebuf.MONO_HLSB)
@@ -82,7 +105,7 @@ class Player:
         self.bullets = []
         self.bullet_speed = bullet_speed
         self.speed = speed
-        self.last_sent_x = None                                              # last position sent; None = nothing sent yet
+        self.last_sent_x = None  # last position sent; None = nothing sent yet
         self.last_shot = time.ticks_add(time.ticks_ms(), -FIRE_COOLDOWN_MS)  # pretend the last shot was long ago
         self.hit_time = None
 
@@ -95,9 +118,13 @@ class Player:
         half = self.width // 2
         self.x = max(half, min(OLED_W - (self.width - half), self.x))
 
-    def hit_by(self, bx, by):                                 # bullet box is now 1 x 3
-        return (self.left_edge() <= bx + bullets.BULLET_W - 1 and bx <= self.left_edge() + self.width - 1 and
-                self.y <= by + bullets.BULLET_H - 1 and by <= self.y + self.height - 1)
+    def hit_by(self, bx, by):  # bullet box is now 1 x 3
+        return (
+            self.left_edge() <= bx + bullets.BULLET_W - 1
+            and bx <= self.left_edge() + self.width - 1
+            and self.y <= by + bullets.BULLET_H - 1
+            and by <= self.y + self.height - 1
+        )
 
     def draw(self):
         oled.blit(self.character, self.left_edge(), self.y, 0)
@@ -109,15 +136,14 @@ class Player:
         assert len(data) == row_bytes * h, "byte count doesn't match w x h"
         out = bytearray(len(data))
         for r in range(h):
-            src = (h - 1 - r) if is_opp else r              # flip = read rows bottom-up
+            src = (h - 1 - r) if is_opp else r  # flip = read rows bottom-up
             for b in range(row_bytes):
                 out[r * row_bytes + b] = data[src * row_bytes + b]
         return framebuf.FrameBuffer(out, w, h, framebuf.MONO_HLSB)
 
 
 class Bot(Player):
-    def __init__(self, data, w, h, speed, think_ms, aim_error, fire_range,
-                 cooldown, fire_chance, dodge):
+    def __init__(self, data, w, h, speed, think_ms, aim_error, fire_range, cooldown, fire_chance, dodge):
         super().__init__(data, w, h, speed=speed, is_opp=True)
         self.think_ms = think_ms
         self.aim_error = aim_error
@@ -125,7 +151,7 @@ class Bot(Player):
         self.cooldown = cooldown
         self.fire_chance = fire_chance
         self.dodge = dodge
-        self.last_shot = time.ticks_ms()      # the bot waits one cooldown before its first shot
+        self.last_shot = time.ticks_ms()  # the bot waits one cooldown before its first shot
 
 
 class Frame:
@@ -170,7 +196,7 @@ class Frame:
 
     def restart_clocks(self):
         """Called right before play starts (after the countdown)."""
-        self.last_input = time.ticks_ms()        # idle timer starts now
+        self.last_input = time.ticks_ms()  # idle timer starts now
 
     def check_idle(self):
         pass
@@ -225,7 +251,7 @@ class Frame:
             self.opponent.hit_time = None
 
     def draw(self):
-        blink = (time.ticks_ms() // 100) % 2 == 1      # True on the "hidden" 100 ms slots
+        blink = (time.ticks_ms() // 100) % 2 == 1  # True on the "hidden" 100 ms slots
         oled.fill(0)
         self.draw_lives()
         if self.opponent.hit_time is None or not blink:
@@ -238,11 +264,11 @@ class Frame:
     def reset(self):
         """Put both players back to the start of a match (used for rematches)."""
         for p in (self.player, self.opponent):
-            p.x = OLED_W // 2                 # back to the centre
+            p.x = OLED_W // 2  # back to the centre
             p.lives = 3
-            p.bullets[:] = []                 # clear bullets in place
-            p.hit_time = None                 # not blinking
-            p.last_sent_x = None              # forces a fresh POS on the first frame
+            p.bullets[:] = []  # clear bullets in place
+            p.hit_time = None  # not blinking
+            p.last_sent_x = None  # forces a fresh POS on the first frame
 
 
 class TwoPlayerFrame(Frame):
@@ -257,8 +283,8 @@ class TwoPlayerFrame(Frame):
     def restart_clocks(self):
         super().restart_clocks()
         now = time.ticks_ms()
-        self.last_heard_from_opp = now           # the countdown must not count as silence
-        self.last_ping = time.ticks_add(now, -PING_EVERY_MS)   # send a PING on the first frame
+        self.last_heard_from_opp = now  # the countdown must not count as silence
+        self.last_ping = time.ticks_add(now, -PING_EVERY_MS)  # send a PING on the first frame
 
     def check_idle(self):
         if time.ticks_diff(self.start, self.last_input) >= IDLE_MS:
@@ -280,8 +306,8 @@ class TwoPlayerFrame(Frame):
             elif kind == FIRE:
                 self.opponent.bullets.append([OLED_W - value, self.opponent.y + self.opponent.height])
             elif kind == LIVES:
-                if value < self.opponent.lives:                  # they really lost one (not a repeat)
-                    self.opponent.hit_time = now     # blink them on your screen
+                if value < self.opponent.lives:  # they really lost one (not a repeat)
+                    self.opponent.hit_time = now  # blink them on your screen
                 self.opponent.lives = value
             elif kind == QUIT:
                 self.result = Result.OPP_IDLE
@@ -318,7 +344,7 @@ class TwoPlayerFrame(Frame):
                 safe_send(self.opp_mac, pack(REMATCH, 1))
             # Wait for opponent's choice
             kind, value = wait_for(self.opp_mac, (REMATCH, QUIT), 15000)
-            if kind != REMATCH or value != 1:                       # they chose exit, left, or never answered
+            if kind != REMATCH or value != 1:  # they chose exit, left, or never answered
                 return False
         else:
             # Tell opponent you do not want a rematch 3 times to be safe
@@ -333,12 +359,14 @@ class TwoPlayerFrame(Frame):
         Keep bullets that is still under your opponent and did not hit them
         if it hit them, don't make it pass through them
         """
-        self.player.bullets[:] = [b for b in self.player.bullets if b[1] >= OPP_Y and not self.opponent.hit_by(b[0], b[1])]
+        self.player.bullets[:] = [
+            b for b in self.player.bullets if b[1] >= OPP_Y and not self.opponent.hit_by(b[0], b[1])
+        ]
 
     def reset(self):
         super().reset()
         now = time.ticks_ms()
-        self.last_input = now     # restart the idle clock
+        self.last_input = now  # restart the idle clock
         self.last_heard_from_opp = now
         self.last_ping = now
         drain()
@@ -349,8 +377,8 @@ class SinglePlayerFrame(Frame):
         super().__init__(player, opponent)
         now = time.ticks_ms()
         self.last_input = now
-        self.opponent_target = opponent.x                                       # head nowhere yet
-        self.opponent_last_think = time.ticks_add(now, -opponent.think_ms)   # think at once
+        self.opponent_target = opponent.x  # head nowhere yet
+        self.opponent_last_think = time.ticks_add(now, -opponent.think_ms)  # think at once
 
     def check_idle(self):
         if time.ticks_diff(self.start, self.last_input) >= IDLE_MS:
@@ -368,7 +396,10 @@ class SinglePlayerFrame(Frame):
                 if close_x and close_y and random.randint(1, 100) <= self.opponent.dodge:
                     # step away from the bullet, toward the side with more room
                     away = self.opponent.width if b[0] <= self.opponent.x else -self.opponent.width
-                    if self.opponent.x + away > OLED_W - self.opponent.width // 2 or self.opponent.x + away < self.opponent.width // 2:
+                    if (
+                        self.opponent.x + away > OLED_W - self.opponent.width // 2
+                        or self.opponent.x + away < self.opponent.width // 2
+                    ):
                         away = -away
                     self.opponent_target = self.opponent.x + away
                     break
@@ -381,7 +412,9 @@ class SinglePlayerFrame(Frame):
         lined_up = abs(self.opponent.x - self.player.x) <= self.opponent.fire_range
         if lined_up and time.ticks_diff(self.start, self.opponent.last_shot) >= self.opponent.cooldown:
             if random.randint(1, 100) <= self.opponent.fire_chance:
-                self.opponent.bullets.append([self.opponent.x, self.opponent.y + self.opponent.height])  # the bot's centre, just below it
+                self.opponent.bullets.append(
+                    [self.opponent.x, self.opponent.y + self.opponent.height]
+                )  # the bot's centre, just below it
             self.opponent.last_shot = self.start  # shot or hesitated: wait a cooldown
 
     def filter_bullets(self):
@@ -403,7 +436,7 @@ class SinglePlayerFrame(Frame):
     def reset(self):
         super().reset()
         now = time.ticks_ms()
-        self.last_input = now     # restart the idle clock
+        self.last_input = now  # restart the idle clock
         self.opponent_target = self.opponent.x
         self.opponent_last_think = time.ticks_add(now, -self.opponent.think_ms)
         self.opponent.last_shot = now
@@ -443,19 +476,19 @@ def read_controls():
     if time.ticks_diff(now, press_start) < CHORD_MS:
         return 0, False
 
-    return (-1 if left_pressed else 1), False      # a single pad: move
+    return (-1 if left_pressed else 1), False  # a single pad: move
 
 
 def play_match(frame):
     global press_start, chord_locked
 
-    press_start, chord_locked = None, False        # forget the last match's press
+    press_start, chord_locked = None, False  # forget the last match's press
 
-    while left_btn.value() or right_btn.value():   # wait for fingers off the pads
+    while left_btn.value() or right_btn.value():  # wait for fingers off the pads
         time.sleep_ms(10)
 
-    countdown()                                    # READY, then 3 stars disappearing one by one
-    frame.restart_clocks()                         # idle (and link) timers start now
+    countdown()  # READY, then 3 stars disappearing one by one
+    frame.restart_clocks()  # idle (and link) timers start now
 
     while True:
         frame.start = time.ticks_ms()
@@ -470,18 +503,18 @@ def play_match(frame):
             return frame.result
 
         # ---- 3. move and fire (you)
-        frame.update_player_pos()          # move + clamp (+ send POS in 2-player)
-        frame.update_player_bullets()      # fire if allowed (+ send FIRE in 2-player)
+        frame.update_player_pos()  # move + clamp (+ send POS in 2-player)
+        frame.update_player_bullets()  # fire if allowed (+ send FIRE in 2-player)
 
         # ---- 4. opponent: radio messages (2-player) or the bot (1-player)
         frame.update_opponent()
-        if frame.result is not None:     # opponent quit, or the link dropped
+        if frame.result is not None:  # opponent quit, or the link dropped
             return frame.result
 
         # ---- 5. move bullets and check hits
         frame.move_bullets()
-        frame.filter_bullets()             # your bullets
-        frame.filter_opponent_bullets()    # their bullets vs you (lives, LIVES message)
+        frame.filter_bullets()  # your bullets
+        frame.filter_opponent_bullets()  # their bullets vs you (lives, LIVES message)
         frame.reset_hit_time()
         frame.reset_opponent_hit_time()
 
@@ -528,7 +561,7 @@ def search_text():
 # While waiting for the person you picked to pick you too
 WAIT_TEXT = tuple(((w, 24), ("L: cancel", 40)) for w in ("waiting  ", "waiting. ", "waiting.."))
 CONNECTED_TEXT = "connected"
-CONNECTED_MS = 1000                 # "connected" stays up this long before the game
+CONNECTED_MS = 1000  # "connected" stays up this long before the game
 AGAIN, BACK = "search again", "back"
 
 
@@ -548,7 +581,7 @@ def pick_from_list(lobby):
             chosen.value = AGAIN
 
     menu = Menu(oled, OLED_W, OLED_H, labels, on_select=on_select, icons=icons)
-    scroll(menu, on_idle=lobby.poll)          # keep answering others while the list is up
+    scroll(menu, on_idle=lobby.poll)  # keep answering others while the list is up
     return chosen.value
 
 
@@ -568,8 +601,8 @@ def run_two_players(pet):
             break
         # 2. pick someone from the list
         choice = pick_from_list(lobby)
-        wait_release()                        # the L + R that selected isn't a cancel
-        if choice is AGAIN:                   # (not ==: choice may be a MAC, i.e. bytes)
+        wait_release()  # the L + R that selected isn't a cancel
+        if choice is AGAIN:  # (not ==: choice may be a MAC, i.e. bytes)
             lobby.found.clear()
             continue
         if choice is None:
@@ -589,7 +622,7 @@ def run_two_players(pet):
             break
         opp_pet_name = characters.NAMES[lobby.found[choice]]
         opponent = Player(*characters.CHARACTERS[opp_pet_name], is_opp=True)
-        drain()                               # leftover HELLOs aren't game messages
+        drain()  # leftover HELLOs aren't game messages
         return TwoPlayerFrame(player, opponent, choice)
 
     log(INFO, "2-player: no opponent")
@@ -615,7 +648,7 @@ def run(pet):
     if mode.value is not None:
         frame = mode.value(pet)
 
-        if frame is None:            # "back" chosen, or no opponent found
+        if frame is None:  # "back" chosen, or no opponent found
             return
 
         while True:
@@ -623,11 +656,11 @@ def run(pet):
             log(INFO, "match result:", result)
             if result in (Result.IDLE, Result.OPP_IDLE, Result.LOST_LINK):
                 break
-            time.sleep_ms(1000)                               # let the final hit sink in
+            time.sleep_ms(1000)  # let the final hit sink in
             if not frame.rematch("YOU WIN" if result == Result.WIN else "YOU LOSE"):
                 break
 
-            frame.reset()                                     # fresh match, same opponent
+            frame.reset()  # fresh match, same opponent
 
         time.sleep_ms(1000)
 

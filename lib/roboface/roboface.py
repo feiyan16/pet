@@ -47,41 +47,51 @@ SW = 6
 W = 7
 NW = 8
 
-_MOUTH_H = 8          # vertical room reserved for the mouth (px)
-_SPACING = 28         # default gap between the eye bitmaps (px)
-_MOUTH_GAP = -4       # mouth top vs eye bottom (px); negative = raised
-                      # into the space between the eyes
-_MOUTH_W_PCT = 104    # mouth width as % of eye width
-_MOUTH_T = 3          # mouth line thickness (px)
-_CHEEK_R = 3          # laughing cheek radius (px)
-_LOVE_FRAME_MS = 80   # duration of each of the 4 LOVE transition frames
-_CACHE_MAX = 24       # max number of resized bitmaps kept in RAM
-_POS = {N: (0, -1), NE: (1, -1), E: (1, 0), SE: (1, 1),
-        S: (0, 1), SW: (-1, 1), W: (-1, 0), NW: (-1, -1), DEFAULT: (0, 0)}
+_MOUTH_H = 8  # vertical room reserved for the mouth (px)
+_SPACING = 28  # default gap between the eye bitmaps (px)
+_MOUTH_GAP = -4  # mouth top vs eye bottom (px); negative = raised
+# into the space between the eyes
+_MOUTH_W_PCT = 104  # mouth width as % of eye width
+_MOUTH_T = 3  # mouth line thickness (px)
+_CHEEK_R = 3  # laughing cheek radius (px)
+_LOVE_FRAME_MS = 80  # duration of each of the 4 LOVE transition frames
+_CACHE_MAX = 24  # max number of resized bitmaps kept in RAM
+_POS = {
+    N: (0, -1),
+    NE: (1, -1),
+    E: (1, 0),
+    SE: (1, 1),
+    S: (0, 1),
+    SW: (-1, 1),
+    W: (-1, 0),
+    NW: (-1, -1),
+    DEFAULT: (0, 0),
+}
 _WAVE = (0, 1, 2, 1, 0, -1, -2, -1)
 
 # ANGRY lean-in zoom: the face grows toward the viewer, more at the top
-_ANG_STEPS = (0, 55, 85, 97, 100)   # zoom progress (%) of each stage
-_ANG_STAGE_MS = 50                  # time per stage (4 stages = 200 ms)
-_ANG_TOP = 1.32                     # full zoom at the top of the face
-_ANG_BOT = 1.06                     # full zoom at the bottom of the face
-_ANG_LID = 50                       # angry eyelid depth (% of eye height)
+_ANG_STEPS = (0, 55, 85, 97, 100)  # zoom progress (%) of each stage
+_ANG_STAGE_MS = 50  # time per stage (4 stages = 200 ms)
+_ANG_TOP = 1.32  # full zoom at the top of the face
+_ANG_BOT = 1.06  # full zoom at the bottom of the face
+_ANG_LID = 50  # angry eyelid depth (% of eye height)
 # anger vein: one quadrant as a pixel path around the mark's centre
 # (the other three are mirror images), and its pop / throb sizes in %
 _VEIN = ((-3, -6), (-2, -5), (-2, -2), (-5, -2), (-6, -3))
-_VEIN_POP = (50, 125, 125, 100)     # one size per 40 ms after it appears
-_VEIN_THROB_MS = 400                # then alternates 100% / 125%
+_VEIN_POP = (50, 125, 125, 100)  # one size per 40 ms after it appears
+_VEIN_THROB_MS = 400  # then alternates 100% / 125%
 
 # feed(): stars pour straight down into the EAT mouth
-_FEED_STARS = 6                     # stars per feed() call
-_FEED_SPAWN_MS = 110                # one new star every 110 ms
-_FEED_FALL_MS = 520                 # time for a star to fall into the mouth
-_EAT_SCALE = 40                     # the whole face shrinks to this %
+_FEED_STARS = 6  # stars per feed() call
+_FEED_SPAWN_MS = 110  # one new star every 110 ms
+_FEED_FALL_MS = 520  # time for a star to fall into the mouth
+_EAT_SCALE = 40  # the whole face shrinks to this %
 # stars get smaller as they fall: 7 px, 5 px, then 3 px near the mouth
-_FEED_STAR = (("...#...", "...#...", "#######", ".#####.", "..###..",
-               ".##.##.", ".#...#."),
-              ("..#..", "..#..", "#####", ".###.", ".#.#."),
-              (".#.", "###", ".#."))
+_FEED_STAR = (
+    ("...#...", "...#...", "#######", ".#####.", "..###..", ".##.##.", ".#...#."),
+    ("..#..", "..#..", "#####", ".###.", ".#.#."),
+    (".#.", "###", ".#."),
+)
 
 
 def _ticks():
@@ -126,9 +136,9 @@ class _Bitmap:
                     last = x
             if first >= 0 and last - first + 1 > span:
                 span = last - first + 1
-        self.span = span if span else w   # widest row, used for closed eyes
-        lpad = w                          # empty columns left / right of
-        rpad = w                          # the drawing
+        self.span = span if span else w  # widest row, used for closed eyes
+        lpad = w  # empty columns left / right of
+        rpad = w  # the drawing
         for y in range(h):
             for x in range(w):
                 if px(x, y):
@@ -136,7 +146,7 @@ class _Bitmap:
                     rpad = min(rpad, w - 1 - x)
         self.lpad = lpad if lpad < w else 0
         self.rpad = rpad if rpad < w else 0
-        bottom = 0                        # empty rows under the drawing
+        bottom = 0  # empty rows under the drawing
         for y in range(h - 1, -1, -1):
             row = False
             for x in range(w):
@@ -149,12 +159,10 @@ class _Bitmap:
         self.bottom = bottom if bottom < h else 0
 
 
-
 def _check_len(buf, w, h, name):
     need = ((w + 7) // 8) * h
     if len(buf) != need:
-        raise ValueError("%s must be %d bytes for %dx%d MONO_HLSB, got %d"
-                         % (name, need, w, h, len(buf)))
+        raise ValueError("%s must be %d bytes for %dx%d MONO_HLSB, got %d" % (name, need, w, h, len(buf)))
 
 
 def _scaled(src, w, h):
@@ -171,8 +179,7 @@ def _scaled(src, w, h):
     get = src.fb.pixel
     put = dst.pixel
     if w <= sw and h <= sh:
-        xs = [(x * sw // w, max(x * sw // w + 1, (x + 1) * sw // w))
-              for x in range(w)]
+        xs = [(x * sw // w, max(x * sw // w + 1, (x + 1) * sw // w)) for x in range(w)]
         for y in range(h):
             y0 = y * sh // h
             y1 = max(y0 + 1, (y + 1) * sh // h)
@@ -185,6 +192,7 @@ def _scaled(src, w, h):
                 if 2 * on >= (x1 - x0) * (y1 - y0):
                     put(x, y, 1)
     else:
+
         def axis(n, sn):
             # source position of each target pixel centre, in 1/256 px
             out = []
@@ -197,6 +205,7 @@ def _scaled(src, w, h):
                 b = a + 1 if a + 1 < sn else a
                 out.append((a, b, f))
             return out
+
         xs = axis(w, sw)
         for y, (ya, yb, fy) in enumerate(axis(h, sh)):
             for x in range(w):
@@ -231,13 +240,12 @@ def _heart(w, h, k=4):
     fb = big.fb
     hh = min(H, (W * 9) // 10)
     top = (H - hh) // 2
-    r = max(1, (W + 2) // 4)                            # lobe radius
+    r = max(1, (W + 2) // 4)  # lobe radius
     cy = top + r
-    fb.ellipse(r - 1, cy, r, r, 1, True)                # left lobe
-    fb.ellipse(W - r, cy, r, r, 1, True)                # right lobe
+    fb.ellipse(r - 1, cy, r, r, 1, True)  # left lobe
+    fb.ellipse(W - r, cy, r, r, 1, True)  # right lobe
     mid = cy + r // 3
-    fb.poly(0, 0, _array("h", [0, mid, W - 1, mid, W // 2, top + hh - 1]),
-            1, True)
+    fb.poly(0, 0, _array("h", [0, mid, W - 1, mid, W // 2, top + hh - 1]), 1, True)
     fb.fill_rect(r - 1, cy, W - 2 * r + 2, mid - cy + 1, 1)
     out = _scaled(big, w, h)
     del big
@@ -276,10 +284,10 @@ def _keystone(src, ex, ey, top, bot, st, sb):
     def s_at(y):
         return a + b * y
 
-    def fwd(y):                         # source row -> output row
+    def fwd(y):  # source row -> output row
         return a * y + b * y * y / 2
 
-    def inv(Y):                         # output row -> source row
+    def inv(Y):  # output row -> source row
         if b == 0:
             return Y / a
         d = a * a + 2 * b * Y
@@ -287,8 +295,7 @@ def _keystone(src, ex, ey, top, bot, st, sb):
 
     y_top = fwd(ey)
     y_bot = fwd(ey + h)
-    xs = (ex * s_at(ey), ex * s_at(ey + h),
-          (ex + w) * s_at(ey), (ex + w) * s_at(ey + h))
+    xs = (ex * s_at(ey), ex * s_at(ey + h), (ex + w) * s_at(ey), (ex + w) * s_at(ey + h))
     X0 = int(min(xs)) - 1
     X1 = int(max(xs)) + 2
     Y0 = int(y_top) - 1
@@ -298,15 +305,14 @@ def _keystone(src, ex, ey, top, bot, st, sb):
     obuf = bytearray(((ow + 7) // 8) * oh)
     fb = _framebuf.FrameBuffer(obuf, ow, oh, _framebuf.MONO_HLSB)
     for oy in range(oh):
-        y = inv(Y0 + oy + 0.5)          # source position of this row centre
-        r = y - ey - 0.5                # between source rows r0 and r0 + 1
+        y = inv(Y0 + oy + 0.5)  # source position of this row centre
+        r = y - ey - 0.5  # between source rows r0 and r0 + 1
         r0 = int(r) if r >= 0 else int(r) - 1
         f = r - r0
         ra = spans[r0] if 0 <= r0 < h else ()
         rb = spans[r0 + 1] if 0 <= r0 + 1 < h else ()
         if len(ra) == len(rb) and ra:
-            row = [(sa[0] + (sb_[0] - sa[0]) * f, sa[1] + (sb_[1] - sa[1]) * f)
-                   for sa, sb_ in zip(ra, rb)]
+            row = [(sa[0] + (sb_[0] - sa[0]) * f, sa[1] + (sb_[1] - sa[1]) * f) for sa, sb_ in zip(ra, rb)]
         else:
             row = rb if f >= 0.5 else ra
         if not row:
@@ -328,7 +334,7 @@ class Sequence:
     def __init__(self, face, name):
         self.face = face
         self.name = name
-        self._steps = []      # [ms, func, done]
+        self._steps = []  # [ms, func, done]
         self._start = None
 
     def step(self, ms_timing, _lambda):
@@ -390,9 +396,22 @@ class Sequences(list):
 
 # =============================================================================
 class RoboFace:
-    def __init__(self, fb, width, height, eye, eye_w, eye_h, name, 
-                 right_eye=None, mirror=True,
-                 frame_rate=20, on_show=None, bgcolor=0, fgcolor=1):
+    def __init__(
+        self,
+        fb,
+        width,
+        height,
+        eye,
+        eye_w,
+        eye_h,
+        name,
+        right_eye=None,
+        mirror=True,
+        frame_rate=20,
+        on_show=None,
+        bgcolor=0,
+        fgcolor=1,
+    ):
         _check_len(eye, eye_w, eye_h, "eye")
         if right_eye is not None:
             _check_len(right_eye, eye_w, eye_h, "right_eye")
@@ -416,8 +435,7 @@ class RoboFace:
             right = left
         self._src = {"eye": (left, right)}
         # the eye bitmaps exactly as given, for to_json() (no extra copies)
-        self._eye_args = (left.buf, right.buf if right_eye is not None
-                          else None, bool(mirror))
+        self._eye_args = (left.buf, right.buf if right_eye is not None else None, bool(mirror))
         self._cache = {}
         self._order = []
         self._vb = {}
@@ -425,8 +443,7 @@ class RoboFace:
         # colors: a palette maps bitmap bits 0/1 to bgcolor/fgcolor
         self._pal = None
         if fgcolor != 1 or bgcolor != 0:
-            self._pal = _framebuf.FrameBuffer(bytearray(4), 2, 1,
-                                              _framebuf.RGB565)
+            self._pal = _framebuf.FrameBuffer(bytearray(4), 2, 1, _framebuf.RGB565)
             self._pal.pixel(0, 0, bgcolor)
             self._pal.pixel(1, 0, fgcolor)
 
@@ -461,10 +478,10 @@ class RoboFace:
         self._love_idx = 0
         self._love_t = 0
         self._surp_t = 0
-        self._ang_z = 0             # ANGRY zoom stage, 0..4
+        self._ang_z = 0  # ANGRY zoom stage, 0..4
         self._ang_t = 0
-        self._angc = {}             # cache of warped eyes
-        self._vein_t = None         # when the anger vein appeared
+        self._angc = {}  # cache of warped eyes
+        self._vein_t = None  # when the anger vein appeared
 
         # animations
         self._hflick = [False, 2]
@@ -476,10 +493,10 @@ class RoboFace:
         self._talk = False
         self._sleeping = False
         self._sleep_t = 0
-        self._feed = None           # feed() state while eating
+        self._feed = None  # feed() state while eating
 
         # automatic behaviours
-        self._ab = [False, 1, 4, 0]     # active, interval, variation, next
+        self._ab = [False, 1, 4, 0]  # active, interval, variation, next
         self._idle = [False, 1, 4, 0]
 
         self.sequences = Sequences(self)
@@ -521,17 +538,17 @@ class RoboFace:
         width,
         height    : drawing area of the copy (default: same as original)
         """
-        new = object.__new__(type(self))      # keeps subclasses (add-ons)
+        new = object.__new__(type(self))  # keeps subclasses (add-ons)
         for k, v in self.__dict__.items():
             if k in RoboFace._SHARED:
-                pass                      # shared, see _SHARED
+                pass  # shared, see _SHARED
             elif isinstance(v, list):
-                v = list(v)               # own copy of state lists
+                v = list(v)  # own copy of state lists
             elif isinstance(v, dict):
-                v = dict(v)               # own copy of state dicts
+                v = dict(v)  # own copy of state dicts
             setattr(new, k, v)
         new.sequences = Sequences(new)
-        if self._feed is not None:        # a copy doesn't carry on eating
+        if self._feed is not None:  # a copy doesn't carry on eating
             new._feed = None
             new._ab[0] = self._feed["ab"]
             new._idle[0] = self._feed["idle"]
@@ -587,10 +604,13 @@ class RoboFace:
             "frame_rate": self._frame_rate,
             "bgcolor": self.bgcolor,
             "fgcolor": self.fgcolor,
-            "eye": {"w": self._src["eye"][0].w, "h": self._src["eye"][0].h,
-                    "left": b64(left),
-                    "right": b64(right) if right is not None else None,
-                    "mirror": mirror},
+            "eye": {
+                "w": self._src["eye"][0].w,
+                "h": self._src["eye"][0].h,
+                "left": b64(left),
+                "right": b64(right) if right is not None else None,
+                "mirror": mirror,
+            },
             "settings": {
                 "eyes_width": list(self._w),
                 "eyes_height": list(self._h),
@@ -613,8 +633,7 @@ class RoboFace:
                 "sleeping": self._sleeping,
                 # open/closed eyes (0..100); a blink in progress is saved
                 # as open, a close() as closed
-                "eyes_open": [0 if (t == 0 and not r) else 100
-                              for t, r in zip(self._op_target, self._reopen)],
+                "eyes_open": [0 if (t == 0 and not r) else 100 for t, r in zip(self._op_target, self._reopen)],
                 "lids": [lid["top"], lid["angry"], lid["sad"], lid["happy"]],
                 "angry_zoom": self._ang_z,
             },
@@ -636,17 +655,26 @@ class RoboFace:
 
         d = json.loads(text)
         if d.get("roboface_json") != RoboFace._JSON_VERSION:
-            raise ValueError("not a RoboFace JSON (version %r)"
-                             % (d.get("roboface_json"),))
+            raise ValueError("not a RoboFace JSON (version %r)" % (d.get("roboface_json"),))
         if d.get("class") != cls.__name__:
-            raise ValueError("JSON was saved from %s; load it with %s.from_json"
-                             % (d.get("class"), d.get("class")))
+            raise ValueError("JSON was saved from %s; load it with %s.from_json" % (d.get("class"), d.get("class")))
         e = d["eye"]
         right = a2b_base64(e["right"]) if e["right"] is not None else None
-        face = cls(fb, d["width"], d["height"], a2b_base64(e["left"]),
-                   e["w"], e["h"], name=d.get("name"), right_eye=right, mirror=e["mirror"],
-                   frame_rate=d["frame_rate"], on_show=on_show,
-                   bgcolor=d["bgcolor"], fgcolor=d["fgcolor"])
+        face = cls(
+            fb,
+            d["width"],
+            d["height"],
+            a2b_base64(e["left"]),
+            e["w"],
+            e["h"],
+            name=d.get("name"),
+            right_eye=right,
+            mirror=e["mirror"],
+            frame_rate=d["frame_rate"],
+            on_show=on_show,
+            bgcolor=d["bgcolor"],
+            fgcolor=d["fgcolor"],
+        )
         s = d["settings"]
         face._w = list(s["eyes_width"])
         face._h = list(s["eyes_height"])
@@ -659,8 +687,8 @@ class RoboFace:
         face._vflick = list(s["vert_flicker"])
         face._talk = s["talk"]
         st = d["state"]
-        face.mood = st["mood"]                 # also prepares LOVE hearts
-        if st["mood"] == LOVE:                 # loaded as settled hearts
+        face.mood = st["mood"]  # also prepares LOVE hearts
+        if st["mood"] == LOVE:  # loaded as settled hearts
             face._love_idx = 3
             face._love_dir = 0
         face._position = st["position"]
@@ -670,8 +698,7 @@ class RoboFace:
         face._op = list(st["eyes_open"])
         face._op_target = list(st["eyes_open"])
         face._reopen = [False, False]
-        face._lid["top"], face._lid["angry"], face._lid["sad"], \
-            face._lid["happy"] = st["lids"]
+        face._lid["top"], face._lid["angry"], face._lid["sad"], face._lid["happy"] = st["lids"]
         face._ang_z = st["angry_zoom"]
         now = _ticks()
         face._sleep_t = now
@@ -789,8 +816,7 @@ class RoboFace:
 
     @mood.setter
     def mood(self, mood):
-        if mood not in (DEFAULT, TIRED, ANGRY, HAPPY, FROZEN, SCARY, CURIOUS,
-                        LOVE, SAD, SURPRISED):
+        if mood not in (DEFAULT, TIRED, ANGRY, HAPPY, FROZEN, SCARY, CURIOUS, LOVE, SAD, SURPRISED):
             raise ValueError("unknown mood %r" % (mood,))
         now = _ticks()
         self._mood = mood
@@ -804,7 +830,7 @@ class RoboFace:
             self._love_dir = 1
             self._love_t = now
         elif self._shown == LOVE:
-            self._love_dir = -1          # play transition in reverse first
+            self._love_dir = -1  # play transition in reverse first
             self._love_t = now
         else:
             self._show(mood, now)
@@ -915,14 +941,22 @@ class RoboFace:
         now = _ticks()
         f = self._feed
         if f is None or f["phase"] in ("close", "happy"):
-            if f is None:                 # pause automatic blink / idle
+            if f is None:  # pause automatic blink / idle
                 ab, idle = self._ab[0], self._idle[0]
             else:
                 ab, idle = f["ab"], f["idle"]
-            self._feed = f = {"dir": 1 if side == "right" else -1,
-                              "phase": "open", "t": now, "queue": 0,
-                              "stars": [], "next": now + 250, "gulp": 0,
-                              "ab": ab, "idle": idle, "mouth": None}
+            self._feed = f = {
+                "dir": 1 if side == "right" else -1,
+                "phase": "open",
+                "t": now,
+                "queue": 0,
+                "stars": [],
+                "next": now + 250,
+                "gulp": 0,
+                "ab": ab,
+                "idle": idle,
+                "mouth": None,
+            }
             self._ab[0] = False
             self._idle[0] = False
             # eat from a neutral face: wake up, drop the current mood
@@ -940,8 +974,7 @@ class RoboFace:
         o = self._mouth_off
         if o < 1:
             l, r = self._src["eye"]
-            gap = (self._space + l.rpad * self._w[0] // l.w +
-                   r.lpad * self._w[1] // r.w)    # visible gap between eyes
+            gap = self._space + l.rpad * self._w[0] // l.w + r.lpad * self._w[1] // r.w  # visible gap between eyes
             if self._mouth_w + 2 > gap:
                 o = 1
         return o
@@ -960,8 +993,7 @@ class RoboFace:
         if awake and self._ab[0] and _time.ticks_diff(now, self._ab[3]) >= 0:
             self.blink()
             self._schedule(self._ab, now)
-        if awake and self._idle[0] and \
-                _time.ticks_diff(now, self._idle[3]) >= 0:
+        if awake and self._idle[0] and _time.ticks_diff(now, self._idle[3]) >= 0:
             self._layout()
             self._tox = _rand(2 * self._maxx) - self._maxx
             self._toy = _rand(2 * self._maxy) - self._maxy
@@ -980,17 +1012,18 @@ class RoboFace:
         self._oy = _ease(self._oy, self._toy)
 
         m = self._shown
-        targets = {"top": 45 if m == TIRED else (30 if m == SCARY else 0),
-                   "sad": 45 if m == SAD else 0,
-                   "happy": 100 if m == HAPPY else 0}
+        targets = {
+            "top": 45 if m == TIRED else (30 if m == SCARY else 0),
+            "sad": 45 if m == SAD else 0,
+            "happy": 100 if m == HAPPY else 0,
+        }
         for k in targets:
             self._lid[k] = _ease(self._lid[k], targets[k])
 
         # ANGRY zoom: one stage every _ANG_STAGE_MS toward fully zoomed (in
         # ANGRY) or not zoomed (any other mood); the angry lids follow it
         zt = 4 if m == ANGRY else 0
-        if self._ang_z != zt and \
-                _time.ticks_diff(now, self._ang_t) >= _ANG_STAGE_MS:
+        if self._ang_z != zt and _time.ticks_diff(now, self._ang_t) >= _ANG_STAGE_MS:
             self._ang_z += 1 if zt > self._ang_z else -1
             self._ang_t = now
         self._lid["angry"] = _ANG_LID * _ANG_STEPS[self._ang_z] // 100
@@ -1000,8 +1033,7 @@ class RoboFace:
         else:
             self._vein_t = None
 
-        if self._love_dir and _time.ticks_diff(now, self._love_t) >= \
-                _LOVE_FRAME_MS:
+        if self._love_dir and _time.ticks_diff(now, self._love_t) >= _LOVE_FRAME_MS:
             self._love_t = now
             self._love_idx += self._love_dir
             if self._love_idx >= 3:
@@ -1029,7 +1061,7 @@ class RoboFace:
             keep = []
             for t0 in f["stars"]:
                 if _time.ticks_diff(now, t0) >= _FEED_FALL_MS:
-                    f["gulp"] = now               # swallowed
+                    f["gulp"] = now  # swallowed
                 else:
                     keep.append(t0)
             f["stars"] = keep
@@ -1090,7 +1122,7 @@ class RoboFace:
                 self._w, self._h, self._space = w, h, sp
                 self._mouth_w, self._mouth_off = mw, mo
         else:
-            self._feed_place()                   # full size, at the side
+            self._feed_place()  # full size, at the side
             self._draw_face(now)
         if f["phase"] in ("open", "eat"):
             self._draw_feed_stars(now)
@@ -1099,8 +1131,7 @@ class RoboFace:
         # keep the face at the fed side and never off the screen while it
         # changes size
         self._layout()
-        if self._feed["phase"] != "happy" or \
-                _time.ticks_diff(_ticks(), self._feed["t"]) < 700:
+        if self._feed["phase"] != "happy" or _time.ticks_diff(_ticks(), self._feed["t"]) < 700:
             # stop 1 px short of the screen edge
             self._tox = self._feed["dir"] * max(0, self._maxx - 1)
             self._toy = 0
@@ -1167,8 +1198,7 @@ class RoboFace:
         bx = (self.width - tw) // 2 + x
         by = (self.height - fh) // 2 + y
         cy = by + eh // 2
-        centers = ((bx + self._w[0] // 2, cy),
-                   (bx + self._w[0] + self._space + self._w[1] // 2, cy))
+        centers = ((bx + self._w[0] // 2, cy), (bx + self._w[0] + self._space + self._w[1] // 2, cy))
 
         # how each eye is drawn (source kind + size multipliers in %)
         kind = "eye"
@@ -1249,8 +1279,7 @@ class RoboFace:
                 if zoom:
                     zs = za + zb * (cy - FY)
                     lx = PX + int((cx - FX) * zs + 0.5)
-                    ly = PY + int(za * (cy - FY) + zb * (cy - FY) ** 2 / 2
-                                  + 0.5)
+                    ly = PY + int(za * (cy - FY) + zb * (cy - FY) ** 2 / 2 + 0.5)
                     span = int(span * zs + 0.5)
                 fb.fill_rect(lx - span // 2, ly - 1, span, 2, fg)
                 boxes.append((lx, ly, dw, 0))
@@ -1259,14 +1288,12 @@ class RoboFace:
             x0 = cx - dw // 2
             y0 = cy - dh // 2
             if zoom:
-                bmp, wx, wy = self._zoomed(s, bmp, x0 - FX, y0 - FY,
-                                           ztop, zbot, zst, zsb)
+                bmp, wx, wy = self._zoomed(s, bmp, x0 - FX, y0 - FY, ztop, zbot, zst, zsb)
                 if self._pal is None:
                     fb.blit(bmp.fb, PX + wx, PY + wy, bg)
                 else:
                     fb.blit(bmp.fb, PX + wx, PY + wy, bg, self._pal)
-                boxes.append((PX + wx + bmp.w // 2, PY + wy + bmp.h // 2,
-                              bmp.w, bmp.h))
+                boxes.append((PX + wx + bmp.w // 2, PY + wy + bmp.h // 2, bmp.w, bmp.h))
                 continue
             if self._pal is None:
                 fb.blit(bmp.fb, x0, y0, bg)
@@ -1287,7 +1314,7 @@ class RoboFace:
             self._draw_mouth(mx, top, m, look, laughing, now, mw_)
             if laughing and not self._sleeping:
                 cb = eye_bottom
-                if zoom:                  # follow the ANGRY zoom
+                if zoom:  # follow the ANGRY zoom
                     t = cb - FY
                     cb = PY + int(za * t + zb * t * t / 2 + 0.5)
                 self._draw_cheeks(boxes, cb)
@@ -1307,15 +1334,13 @@ class RoboFace:
                 tx = cx + dw // 4
                 ty = ecy + dh // 2 + 3 + (e * 16) // 600
                 fb.ellipse(tx, ty, 2, 2, fg, True)
-                fb.poly(0, 0, _array("h", [tx - 2, ty, tx + 2, ty,
-                                           tx, ty - 5]), fg, True)
+                fb.poly(0, 0, _array("h", [tx - 2, ty, tx + 2, ty, tx, ty - 5]), fg, True)
 
     def _zoomed(self, s, bmp, ex, ey, ztop, zbot, zst, zsb):
         # eye bitmap with the current eyelids applied, then lean-in warped;
         # cached, so holding ANGRY costs no extra work
         lid = self._lid
-        key = (s, id(bmp), ex, ey, ztop, zbot, self._ang_z,
-               lid["top"], lid["angry"], lid["sad"], lid["happy"])
+        key = (s, id(bmp), ex, ey, ztop, zbot, self._ang_z, lid["top"], lid["angry"], lid["sad"], lid["happy"])
         hit = self._angc.get(key)
         if hit is None:
             tmp = _Bitmap(bytearray(bmp.buf), bmp.w, bmp.h)
@@ -1333,11 +1358,12 @@ class RoboFace:
         if i < len(_VEIN_POP):
             sc = _VEIN_POP[i]
         else:
-            sc = 125 if ((e - 40 * len(_VEIN_POP)) // _VEIN_THROB_MS) % 2 \
-                else 100
-        def r(v):                            # round half away from zero,
-            m = (abs(v) * sc + 50) // 100    # so all 4 pieces stay mirrored
+            sc = 125 if ((e - 40 * len(_VEIN_POP)) // _VEIN_THROB_MS) % 2 else 100
+
+        def r(v):  # round half away from zero,
+            m = (abs(v) * sc + 50) // 100  # so all 4 pieces stay mirrored
             return m if v >= 0 else -m
+
         segs = []
         for qx, qy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
             pts = [(cx + r(qx * x), cy + r(qy * y)) for x, y in _VEIN]
@@ -1346,7 +1372,7 @@ class RoboFace:
         fb = self.fb
         bg = self.bgcolor
         fg = self.fgcolor
-        for (x0, y0), (x1, y1) in segs:      # 1 px halo keeps it readable
+        for (x0, y0), (x1, y1) in segs:  # 1 px halo keeps it readable
             for dx in (-1, 0, 1):
                 for dy in (-1, 0, 1):
                     if dx or dy:
@@ -1366,8 +1392,7 @@ class RoboFace:
             b = h - 1 - bmp.bottom
         else:
             tmp = _Bitmap(bytearray(bmp.buf), w, h)
-            self._lids(s, 0, 0, w, h, tmp.fb, 0,
-                       {"top": 0, "angry": 0, "sad": 0, "happy": 100})
+            self._lids(s, 0, 0, w, h, tmp.fb, 0, {"top": 0, "angry": 0, "sad": 0, "happy": 100})
             b = 0
             for y in range(h - 1, -1, -1):
                 for x in range(w):
@@ -1400,16 +1425,13 @@ class RoboFace:
         if lid["sad"]:
             a = top + h * lid["sad"] // 100
             if s == 0:
-                fb.poly(0, 0, _array("h", [x0 - 1, top, x1, top,
-                                           x0 - 1, a]), bg, True)
+                fb.poly(0, 0, _array("h", [x0 - 1, top, x1, top, x0 - 1, a]), bg, True)
             else:
-                fb.poly(0, 0, _array("h", [x0 - 1, top, x1, top,
-                                           x1, a]), bg, True)
+                fb.poly(0, 0, _array("h", [x0 - 1, top, x1, top, x1, a]), bg, True)
         if lid["happy"]:
             ry = (h * 8 // 10) * lid["happy"] // 100
             if ry > 0:
-                fb.ellipse(x0 + w // 2, y0 + h + h // 5,
-                           (w * 6) // 10 + 1, ry, bg, True)
+                fb.ellipse(x0 + w // 2, y0 + h + h // 5, (w * 6) // 10 + 1, ry, bg, True)
                 if lid["happy"] >= 50:
                     fb.fill_rect(x0 - 1, y0 + h + h // 5, w + 2, h, bg)
 
@@ -1422,7 +1444,7 @@ class RoboFace:
         half = w // 2
         prev = None
         for i in range(n + 1):
-            t = 2 * i - n                      # -n .. n
+            t = 2 * i - n  # -n .. n
             px = cx - half + (w * i) // n
             py = cy - depth // 2 + (depth * (n * n - t * t)) // (n * n)
             if prev:
@@ -1510,8 +1532,7 @@ class RoboFace:
                 pts.append((x0 + i * 3, my + (2 if i % 2 else -1)))
             for i in range(n):
                 for k in range(T - 1):
-                    fb.line(pts[i][0], pts[i][1] + k, pts[i + 1][0],
-                            pts[i + 1][1] + k, fg)
+                    fb.line(pts[i][0], pts[i][1] + k, pts[i + 1][0], pts[i + 1][1] + k, fg)
         elif m == SCARY:
             my = top + 1
             ww = (w * 8) // 10
@@ -1532,8 +1553,7 @@ class RoboFace:
         # (laughing), placed from the eyes so they don't move with the mouth
         r = _CHEEK_R
         y = eye_bottom + 2 + r
-        xs = (boxes[0][0] - boxes[0][2] // 4,
-              boxes[1][0] + boxes[1][2] // 4)
+        xs = (boxes[0][0] - boxes[0][2] // 4, boxes[1][0] + boxes[1][2] // 4)
         for x in xs:
             self.fb.ellipse(x, y, r, r, self.fgcolor, True)
 
@@ -1551,13 +1571,12 @@ class RoboFace:
                 self.fb.hline(zx, zy + s, s + 1, fg)
 
 
-
 class HalfMoonFace(RoboFace):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         left, right = self._src["eye"]
         self._eyes_normal = (left, right)
-        self._eyes_sad = (right, left)      # each eye uses its mirror image
+        self._eyes_sad = (right, left)  # each eye uses its mirror image
 
     def _show(self, mood, now):
         # called by RoboFace whenever the displayed mood changes
@@ -1567,16 +1586,15 @@ class HalfMoonFace(RoboFace):
     def _tick(self, now):
         # called by RoboFace once per frame; keep the SAD eyelid closed off
         super()._tick(now)
-        
 
 
+_CYC_MOUTH_W = 24  # default mouth width for a cyclops face (px)
 
-_CYC_MOUTH_W = 24           # default mouth width for a cyclops face (px)
 
 class CyclopsFace(RoboFace):
     def __init__(self, fb, width, height, eye, eye_w, eye_h, **kw):
         kw.pop("right_eye", None)
-        kw["mirror"] = False                 # both copies identical
+        kw["mirror"] = False  # both copies identical
         super().__init__(fb, width, height, eye, eye_w, eye_h, **kw)
         self.mouth_width(min(_CYC_MOUTH_W, eye_w))
         # LOVE: the built-in heart fills the eye's full width, which is
@@ -1602,10 +1620,10 @@ class CyclopsFace(RoboFace):
         super().eyes_height(leftEye, leftEye)
 
     def eyes_spacing(self, space):
-        pass                                 # no spacing with one eye
+        pass  # no spacing with one eye
 
     def _layout(self):
-        self._space = -self._w[0]            # second eye on top of the first
+        self._space = -self._w[0]  # second eye on top of the first
         out = super()._layout()
         # one big eye: leave room for CURIOUS / SURPRISED to enlarge it by
         # 20% when the face has moved toward an edge
@@ -1614,7 +1632,7 @@ class CyclopsFace(RoboFace):
         return out
 
     def _sides(self, left, right):
-        return (0, 1)                        # blink/wink/open/close: the eye
+        return (0, 1)  # blink/wink/open/close: the eye
 
     def _lids(self, s, x0, y0, w, h, fb=None, bg=None, lid=None):
         # same eyelids as RoboFace, but cut symmetrically on one eye, and
@@ -1629,20 +1647,17 @@ class CyclopsFace(RoboFace):
         top = y0 - 1
         if lid["top"]:
             fb.fill_rect(x0 - 1, top, w + 2, h * lid["top"] // 100 + 1, bg)
-        if lid["angry"]:                     # V-notch: brows meet mid-eye
+        if lid["angry"]:  # V-notch: brows meet mid-eye
             a = top + h * lid["angry"] // 100
-            fb.poly(0, 0, _array("h", [x0 - 1, top, x1, top, mid, a]), bg,
-                    True)
-        if lid["sad"]:                       # both outer corners droop
+            fb.poly(0, 0, _array("h", [x0 - 1, top, x1, top, mid, a]), bg, True)
+        if lid["sad"]:  # both outer corners droop
             a = top + h * lid["sad"] // 100
-            fb.poly(0, 0, _array("h", [x0 - 1, top, mid, top, x0 - 1, a]),
-                    bg, True)
+            fb.poly(0, 0, _array("h", [x0 - 1, top, mid, top, x0 - 1, a]), bg, True)
             fb.poly(0, 0, _array("h", [mid, top, x1, top, x1, a]), bg, True)
         if lid["happy"]:
             ry = (h * 8 // 10) * lid["happy"] // 100
             if ry > 0:
-                fb.ellipse(mid, y0 + h + h // 5, (w * 6) // 10 + 1, ry, bg,
-                           True)
+                fb.ellipse(mid, y0 + h + h // 5, (w * 6) // 10 + 1, ry, bg, True)
                 if lid["happy"] >= 50:
                     fb.fill_rect(x0 - 1, y0 + h + h // 5, w + 2, h, bg)
 

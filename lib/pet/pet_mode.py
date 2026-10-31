@@ -14,17 +14,17 @@ from connect import radio_off
 from logger import log, log_exception, DEBUG, INFO, WARN
 
 # --- pet mode settings -------------------------------------------------------
-IDLE_SLEEP_MS = 45000       # no touch for this long in pet mode = get sleepy, then deep sleep
-PAT_TOO_FAST_MS = 250       # two pats closer together than this count as "too fast"...
-PAT_TOO_FAST_TAPS = 5       # ...and this many too-fast pats in a row make the pet angry
-PAT_LOVE_MIN, PAT_LOVE_MAX = 5, 30   # pats needed for LOVE: picked at random in this range
-PAT_SPOTS = (N, NE, E, SE, S, SW, W, NW)   # where a pat can move the face (never the same twice)
-LOVE_SHOW_MS = 2000         # how long the heart eyes stay
-LOVE_BACK_MS = 600          # hearts turning back into happy eyes, before the laugh
-LOVE_LAUGH_MS = 3000        # how long it laughs after enough pats
-LAUGH_STEP_MS = 300         # how often the laugh is re-started (it lasts 500 ms)
-LAUGH_BOUNCE_MS = 150       # time between up and down while laughing (lower = faster)
-EXIT_BLANK_MS = 300         # blank screen when leaving pat mode, before the pet returns
+IDLE_SLEEP_MS = 45000  # no touch for this long in pet mode = get sleepy, then deep sleep
+PAT_TOO_FAST_MS = 250  # two pats closer together than this count as "too fast"...
+PAT_TOO_FAST_TAPS = 5  # ...and this many too-fast pats in a row make the pet angry
+PAT_LOVE_MIN, PAT_LOVE_MAX = 5, 30  # pats needed for LOVE: picked at random in this range
+PAT_SPOTS = (N, NE, E, SE, S, SW, W, NW)  # where a pat can move the face (never the same twice)
+LOVE_SHOW_MS = 2000  # how long the heart eyes stay
+LOVE_BACK_MS = 600  # hearts turning back into happy eyes, before the laugh
+LOVE_LAUGH_MS = 3000  # how long it laughs after enough pats
+LAUGH_STEP_MS = 300  # how often the laugh is re-started (it lasts 500 ms)
+LAUGH_BOUNCE_MS = 150  # time between up and down while laughing (lower = faster)
+EXIT_BLANK_MS = 300  # blank screen when leaving pat mode, before the pet returns
 
 
 # --- small helpers for steps that do more than one thing --------------------
@@ -211,12 +211,7 @@ class PetMode:
             f.update()
             was_r = r_prsd
             both, l_prsd, r_prsd = btn_handler(
-                left_btn.value(),
-                right_btn.value(),
-                l_prsd,
-                r_prsd,
-                l_action=on_left,
-                r_action=on_right,
+                left_btn.value(), right_btn.value(), l_prsd, r_prsd, l_action=on_left, r_action=on_right
             )
             if tap.value == "leave":
                 log(INFO, "pat: stopped after", pats, "pats")
@@ -237,10 +232,7 @@ class PetMode:
             f.set_position(DEFAULT)
 
             now = time.ticks_ms()
-            if (
-                last_pat is not None
-                and time.ticks_diff(now, last_pat) < PAT_TOO_FAST_MS
-            ):
+            if last_pat is not None and time.ticks_diff(now, last_pat) < PAT_TOO_FAST_MS:
                 too_fast += 1
             else:
                 too_fast = 0
@@ -298,9 +290,7 @@ class PetMode:
         while stomach_size > 0:
             l, r = left_btn.value(), right_btn.value()  # read each button once per pass
 
-            _, l_prsd, r_prsd = btn_handler(
-                l, r, l_prsd, r_prsd, l_action=go_left, r_action=go_right
-            )
+            _, l_prsd, r_prsd = btn_handler(l, r, l_prsd, r_prsd, l_action=go_left, r_action=go_right)
 
             if direction.value is not None:
                 stomach_size -= _FEED_STARS
@@ -316,9 +306,7 @@ class PetMode:
         def chosen(_, index, __):
             game.value = [jump.run, shooter.run, back][index]
 
-        game_menu = Menu(
-            oled, OLED_W, OLED_H, ["Jump", "Shoot", "Back"], on_select=chosen
-        )
+        game_menu = Menu(oled, OLED_W, OLED_H, ["Jump", "Shoot", "Back"], on_select=chosen)
         scroll(game_menu)
         if game.value is not None:
             game.value(self)
@@ -367,12 +355,8 @@ class PetMode:
         board: main.py runs again and the pet does its wake-up animation."""
         radio_off()  # in case a 2-player game left it on
         wait_release()  # a pad held now would wake it at once
-        if hasattr(
-            esp32, "wake_on_gpio"
-        ):  # MicroPython versions with GPIO deep-sleep wake
-            level = getattr(
-                esp32, "WAKEUP_ANY_HIGH", True
-            )  # TTP223: HIGH while touched
+        if hasattr(esp32, "wake_on_gpio"):  # MicroPython versions with GPIO deep-sleep wake
+            level = getattr(esp32, "WAKEUP_ANY_HIGH", True)  # TTP223: HIGH while touched
             esp32.wake_on_gpio((left_btn, right_btn), level)
             log(WARN, "deep sleep until a pad is touched")
             machine.deepsleep()  # does not return
@@ -390,13 +374,7 @@ class PetMode:
             log(INFO, "menu choice:", index)
             action.value = [self.pat, self.feed, self.play, self.demo, back][index]
 
-        pet_menu = Menu(
-            oled,
-            OLED_W,
-            OLED_H,
-            ["Pat", "Feed", "Play", "Demo", "Back"],
-            on_select=chosen,
-        )
+        pet_menu = Menu(oled, OLED_W, OLED_H, ["Pat", "Feed", "Play", "Demo", "Back"], on_select=chosen)
 
         self._lively()
 
@@ -430,9 +408,7 @@ class PetMode:
                         action.value()
                     except Exception as err:
                         log_exception(err, "menu action failed")
-                last_touch = (
-                    time.ticks_ms()
-                )  # the menu and its action were interactions
+                last_touch = time.ticks_ms()  # the menu and its action were interactions
 
             if time.ticks_diff(time.ticks_ms(), last_touch) >= IDLE_SLEEP_MS:
                 self.go_to_sleep()  # only returns if a pad was touched in time

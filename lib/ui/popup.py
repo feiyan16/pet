@@ -25,17 +25,28 @@
 import framebuf as _framebuf
 import time as _time
 
-_FONT = 8        # built-in FrameBuffer font is 8 x 8 px
-_LINE = 10       # text line height (px)
-_MAX_LINES = 3   # most text lines the window shows
-_BTN_H = 11      # option button height (px)
-_BTN_PAD = 3     # space left/right of an option's text inside its button
+_FONT = 8  # built-in FrameBuffer font is 8 x 8 px
+_LINE = 10  # text line height (px)
+_MAX_LINES = 3  # most text lines the window shows
+_BTN_H = 11  # option button height (px)
+_BTN_PAD = 3  # space left/right of an option's text inside its button
 
 
 class Popup:
-    def __init__(self, fb, text, options, width=128, height=64,
-                 win_w=None, on_select=None, on_show=None,
-                 fgcolor=1, bgcolor=0, flash_ms=150):
+    def __init__(
+        self,
+        fb,
+        text,
+        options,
+        width=128,
+        height=64,
+        win_w=None,
+        on_select=None,
+        on_show=None,
+        fgcolor=1,
+        bgcolor=0,
+        flash_ms=150,
+    ):
         """
         fb        : FrameBuffer of the display to draw on
         text      : message shown at the top of the window (word-wrapped)
@@ -66,8 +77,7 @@ class Popup:
 
         self._pal = None
         if fgcolor != 1 or bgcolor != 0:
-            self._pal = _framebuf.FrameBuffer(bytearray(4), 2, 1,
-                                              _framebuf.RGB565)
+            self._pal = _framebuf.FrameBuffer(bytearray(4), 2, 1, _framebuf.RGB565)
             self._pal.pixel(0, 0, bgcolor)
             self._pal.pixel(1, 0, fgcolor)
 
@@ -78,7 +88,7 @@ class Popup:
     # ------------------------------------------------------------ geometry
     def _layout(self, win_w):
         ww = min(self.width, win_w or self.width - 8)
-        cols = max(1, (ww - 8) // _FONT)                 # text chars per line
+        cols = max(1, (ww - 8) // _FONT)  # text chars per line
         self._lines = self._wrap(self.text, cols)
         # options side by side if they fit, otherwise one at a time
         widths = [len(o) * _FONT + 2 * _BTN_PAD for o in self.options]
@@ -100,7 +110,7 @@ class Popup:
         for para in text.split("\n"):
             line = ""
             for word in para.split(" "):
-                while len(word) > cols:                  # very long word
+                while len(word) > cols:  # very long word
                     if line:
                         lines.append(line)
                         line = ""
@@ -117,7 +127,7 @@ class Popup:
         if len(lines) > _MAX_LINES:
             lines = lines[:_MAX_LINES]
             last = lines[-1]
-            lines[-1] = (last[:cols - 1] if len(last) >= cols else last) + "~"
+            lines[-1] = (last[: cols - 1] if len(last) >= cols else last) + "~"
         return lines
 
     # ----------------------------------------------------------- rendering
@@ -146,8 +156,8 @@ class Popup:
             bw = len(label) * _FONT + 2 * _BTN_PAD
             x = (w - bw) // 2
             self._button(fb, x, by, bw, label, ty, True, flash)
-            self._arrow(fb, 5, by + _BTN_H // 2, -1)        # "<"
-            self._arrow(fb, w - 6, by + _BTN_H // 2, 1)     # ">"
+            self._arrow(fb, 5, by + _BTN_H // 2, -1)  # "<"
+            self._arrow(fb, w - 6, by + _BTN_H // 2, 1)  # ">"
         return buf
 
     def _button(self, fb, x, y, bw, label, ty, current, flash):
@@ -168,19 +178,19 @@ class Popup:
     @staticmethod
     def _fit(label, room_px):
         room = max(1, room_px // _FONT)
-        return label if len(label) <= room else label[:room - 1] + "~"
+        return label if len(label) <= room else label[: room - 1] + "~"
 
     @staticmethod
     def _border(fb, w, h):
         # same style as menu.py: rounded left corners, cut right corners
         x0, y0, x1, y1 = 0, 0, w - 1, h - 1
-        fb.hline(x0 + 2, y0, x1 - x0 - 4, 1)            # top
-        fb.hline(x0 + 2, y1, x1 - x0 - 4, 1)            # bottom
-        fb.vline(x0, y0 + 2, y1 - y0 - 3, 1)            # left
-        fb.vline(x1, y0 + 3, y1 - y0 - 5, 1)            # right
-        fb.pixel(x0 + 1, y0 + 1, 1)                     # rounded left corners
+        fb.hline(x0 + 2, y0, x1 - x0 - 4, 1)  # top
+        fb.hline(x0 + 2, y1, x1 - x0 - 4, 1)  # bottom
+        fb.vline(x0, y0 + 2, y1 - y0 - 3, 1)  # left
+        fb.vline(x1, y0 + 3, y1 - y0 - 5, 1)  # right
+        fb.pixel(x0 + 1, y0 + 1, 1)  # rounded left corners
         fb.pixel(x0 + 1, y1 - 1, 1)
-        fb.line(x1 - 2, y0, x1, y0 + 2, 1)              # cut right corners
+        fb.line(x1 - 2, y0, x1, y0 + 2, 1)  # cut right corners
         fb.line(x1 - 2, y1, x1, y1 - 2, 1)
 
     # ------------------------------------------------------------- showing
@@ -189,10 +199,8 @@ class Popup:
         y = self.win_y
         # clear a 1 px margin around the window so it stands out from
         # whatever is underneath, then draw the window (fully opaque)
-        self.fb.fill_rect(x - 1, y - 1, self.win_w + 2, self.win_h + 2,
-                          self.bgcolor)
-        frame = _framebuf.FrameBuffer(buf, self.win_w, self.win_h,
-                                      _framebuf.MONO_HLSB)
+        self.fb.fill_rect(x - 1, y - 1, self.win_w + 2, self.win_h + 2, self.bgcolor)
+        frame = _framebuf.FrameBuffer(buf, self.win_w, self.win_h, _framebuf.MONO_HLSB)
         if self._pal is None:
             self.fb.blit(frame, x, y)
         else:
@@ -211,7 +219,7 @@ class Popup:
         """Highlight the next option and redraw. After the last option it
         wraps to the first. Returns the new index."""
         self._index += 1
-        if self._index >= len(self.options):     # bounds check
+        if self._index >= len(self.options):  # bounds check
             self._index = 0
         self.display()
         return self._index
@@ -220,7 +228,7 @@ class Popup:
         """Highlight the previous option and redraw. Before the first option
         it wraps to the last. Returns the new index."""
         self._index -= 1
-        if self._index < 0:                      # bounds check
+        if self._index < 0:  # bounds check
             self._index = len(self.options) - 1
         self.display()
         return self._index

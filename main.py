@@ -12,9 +12,7 @@ import machine
 import time
 from peripherals import oled, OLED_H
 from utils import centred, wait_release
-from ui import (
-    loading_screen,
-)  # small: its frames are read from flash only while it plays
+from ui import loading_screen  # small: its frames are read from flash only while it plays
 
 gc.collect()
 from logger import log, log_exception, INFO, WARN, log_boot
@@ -59,17 +57,9 @@ def read_pet_json():
 
 def face_from_json(text):
     """The saved face, or None if pet.json is damaged or outdated."""
-    from roboface.roboface import (
-        RoboFace,
-        HalfMoonFace,
-        CyclopsFace,
-    )  # the .mpy: no compiling
+    from roboface.roboface import RoboFace, HalfMoonFace, CyclopsFace  # the .mpy: no compiling
 
-    classes = {
-        "RoboFace": RoboFace,
-        "HalfMoonFace": HalfMoonFace,
-        "CyclopsFace": CyclopsFace,
-    }
+    classes = {"RoboFace": RoboFace, "HalfMoonFace": HalfMoonFace, "CyclopsFace": CyclopsFace}
     try:
         cls = classes[json.loads(text)["class"]]
         return cls.from_json(text, oled, on_show=lambda face: oled.show())
@@ -178,11 +168,7 @@ if pet_face is None:
     #    carrying on half-loaded.
     try:
         loading_screen.run(
-            first_start_loading,
-            text=LOADING_TEXT,
-            intro_text=TYPED_HELLO,
-            pause_ms=HELLO_PAUSE_MS,
-            on_error="raise",
+            first_start_loading, text=LOADING_TEXT, intro_text=TYPED_HELLO, pause_ms=HELLO_PAUSE_MS, on_error="raise"
         )
     except Exception as err:
         log_exception(err, "first-start loading")

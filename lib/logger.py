@@ -27,11 +27,7 @@ def log(level, *parts):
     """log(INFO, "anything", 42, ...): one line, stamped with ms since boot."""
     if level < LOG_LEVEL and level < LOG_FILE_LEVEL:
         return
-    line = "%8d %-5s %s" % (
-        time.ticks_ms(),
-        _NAMES.get(level, level),
-        " ".join(str(p) for p in parts),
-    )
+    line = "%8d %-5s %s" % (time.ticks_ms(), _NAMES.get(level, level), " ".join(str(p) for p in parts))
     if level >= LOG_LEVEL:
         print(line)
     if level >= LOG_FILE_LEVEL:

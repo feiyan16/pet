@@ -2,38 +2,40 @@
 
 # "time" gives us millisecond timers (ticks_ms) and delays (sleep_ms).
 import time
+
 # "struct" packs numbers into raw bytes and unpacks them again; radio messages are just bytes.
 import struct
+
 # "network" controls the Wi-Fi hardware; ESP-NOW uses the Wi-Fi radio, so we need it switched on.
 import network
+
 # "espnow" is MicroPython's built-in ESP-NOW module: direct device-to-device radio messages, no router.
 import espnow
 
 from bitmaps import characters
 from logger import log, INFO, WARN
 
+CHANNEL = 6  # both keychains must use the same Wi-Fi channel
+MAGIC = 0xD1  # first byte of every message: ignore other ESP-NOW devices
+HELLO_EVERY_MS = 500  # how often to shout HELLO while searching
 
-CHANNEL = 6                 # both keychains must use the same Wi-Fi channel
-MAGIC = 0xD1                # first byte of every message: ignore other ESP-NOW devices
-HELLO_EVERY_MS = 500        # how often to shout HELLO while searching
 
+HELLO = 1  # searching: "is anyone there?"   value = my character index
+READY = 2  # handshake reply                  value = my character index
+POS = 3  # my centre x
+FIRE = 4  # I fired from this centre x
+LIVES = 5  # my lives left (sent 3 times)
+PING = 6  # heartbeat, value unused
+QUIT = 7  # I went idle / left the game
+REMATCH = 8  # I chose rematch (1) or exit (0)
+PICK = 9  # I picked you in my list    value = my character index
 
-HELLO = 1                   # searching: "is anyone there?"   value = my character index
-READY = 2                   # handshake reply                  value = my character index
-POS = 3                     # my centre x
-FIRE = 4                    # I fired from this centre x
-LIVES = 5                   # my lives left (sent 3 times)
-PING = 6                    # heartbeat, value unused
-QUIT = 7                    # I went idle / left the game
-REMATCH = 8                 # I chose rematch (1) or exit (0)
-PICK = 9                    # I picked you in my list    value = my character index
-
-BCAST = b"\xff" * 6         # broadcast address: every ESP-NOW device in range
+BCAST = b"\xff" * 6  # broadcast address: every ESP-NOW device in range
 
 
 sta = network.WLAN(network.STA_IF)
 e = espnow.ESPNow()  # created now so "from connect import e" gets the real object;
-                    # it is only switched on by radio_on()
+# it is only switched on by radio_on()
 
 
 def radio_on():
@@ -44,7 +46,7 @@ def radio_on():
     e.active(True)
     try:
         e.add_peer(BCAST)
-    except OSError:          # already registered
+    except OSError:  # already registered
         pass
 
 
@@ -90,15 +92,15 @@ def drain():
 def add_peer(mac):
     try:
         e.add_peer(mac)
-    except OSError:          # already registered
+    except OSError:  # already registered
         pass
 
 
-SEARCH_MIN_MS = 3000        # search at least this long, so everyone nearby is heard
-SEARCH_MAX_MS = 15000       # give up if nobody at all answered by then
-MAX_FOUND = 5               # most keychains listed (each menu entry costs ~1 KB of RAM)
-PICK_EVERY_MS = 500         # while waiting, repeat "I picked you" this often
-WAIT_MS = 20000             # give up waiting for the other person after this long
+SEARCH_MIN_MS = 3000  # search at least this long, so everyone nearby is heard
+SEARCH_MAX_MS = 15000  # give up if nobody at all answered by then
+MAX_FOUND = 5  # most keychains listed (each menu entry costs ~1 KB of RAM)
+PICK_EVERY_MS = 500  # while waiting, repeat "I picked you" this often
+WAIT_MS = 20000  # give up waiting for the other person after this long
 
 
 def short_id(mac):
@@ -122,8 +124,8 @@ class Lobby:
 
     def __init__(self, name):
         self.name_idx = characters.NAMES.index(name)
-        self.found = {}             # mac -> pet index they sent with HELLO
-        self.picked_me = set()      # macs that sent PICK to us
+        self.found = {}  # mac -> pet index they sent with HELLO
+        self.picked_me = set()  # macs that sent PICK to us
         self.last_hello = None
 
     def poll(self):
@@ -166,12 +168,11 @@ class Lobby:
     def entries(self):
         """[(mac, pet name), ...] for keychains whose pet this keychain knows,
         strongest signal (nearest) first."""
-        known = [(mac, characters.NAMES[i]) for mac, i in self.found.items()
-                 if i < len(characters.NAMES)]
+        known = [(mac, characters.NAMES[i]) for mac, i in self.found.items() if i < len(characters.NAMES)]
         try:
-            table = e.peers_table                     # mac -> [rssi, time]
+            table = e.peers_table  # mac -> [rssi, time]
             known.sort(key=lambda m: -table[m[0]][0] if m[0] in table else 0)
-        except AttributeError:                        # no RSSI on this firmware
+        except AttributeError:  # no RSSI on this firmware
             pass
         return known
 
@@ -187,9 +188,9 @@ class Lobby:
                 safe_send(mac, pack(PICK, self.name_idx))
                 last_pick = now
             self.poll()
-            if mac in self.picked_me:                 # they picked us too: paired
+            if mac in self.picked_me:  # they picked us too: paired
                 for _ in range(3):
-                    safe_send(mac, pack(PICK, self.name_idx))   # make sure they hear ours
+                    safe_send(mac, pack(PICK, self.name_idx))  # make sure they hear ours
                 log(INFO, "paired with", short_id(mac))
                 return True
             if on_wait is not None:

@@ -26,11 +26,10 @@ import time as _time
 
 from bitmaps import stars as _stars
 
-_FONT = 8   # built-in FrameBuffer font is 8 x 8 px
+_FONT = 8  # built-in FrameBuffer font is 8 x 8 px
 
 # The star icon is the shared star from bitmaps/stars.py (11 x 10 px)
-_ICON = _framebuf.FrameBuffer(_stars.STAR, _stars.STAR_W, _stars.STAR_H,
-                              _framebuf.MONO_HLSB)
+_ICON = _framebuf.FrameBuffer(_stars.STAR, _stars.STAR_W, _stars.STAR_H, _framebuf.MONO_HLSB)
 # palette for drawing the icon dark on the highlighted (lit) bar:
 # background (0) -> 1, which the key skips; star (1) -> 0 = dark pixel
 _ICON_DARK = _framebuf.FrameBuffer(bytearray(1), 2, 1, _framebuf.MONO_HLSB)
@@ -39,8 +38,9 @@ _ICON_DARK.pixel(1, 0, 0)
 
 
 class Menu:
-    def __init__(self, fb, width, height, options, on_select=None,
-                 on_show=None, fgcolor=1, bgcolor=0, flash_ms=150, icons=None):
+    def __init__(
+        self, fb, width, height, options, on_select=None, on_show=None, fgcolor=1, bgcolor=0, flash_ms=150, icons=None
+    ):
         """
         fb        : FrameBuffer to draw into (your display object)
         width,
@@ -58,8 +58,7 @@ class Menu:
         if not options:
             raise ValueError("options must contain at least one item")
         if height < 48 or width < 64:
-            raise ValueError("menu needs a screen of at least 64x48 px "
-                             "(designed for 128x64)")
+            raise ValueError("menu needs a screen of at least 64x48 px " "(designed for 128x64)")
         self.fb = fb
         self.width = width
         self.height = height
@@ -75,8 +74,7 @@ class Menu:
         # palette maps the 1-bit frames to fgcolor/bgcolor on colour screens
         self._pal = None
         if fgcolor != 1 or bgcolor != 0:
-            self._pal = _framebuf.FrameBuffer(bytearray(4), 2, 1,
-                                              _framebuf.RGB565)
+            self._pal = _framebuf.FrameBuffer(bytearray(4), 2, 1, _framebuf.RGB565)
             self._pal.pixel(0, 0, bgcolor)
             self._pal.pixel(1, 0, fgcolor)
 
@@ -88,19 +86,19 @@ class Menu:
     def _layout(self):
         w = self.width
         h = self.height
-        self._x0 = 1                     # border box
+        self._x0 = 1  # border box
         self._y0 = 1
         self._x1 = w - 2
         self._y1 = h - 2
         inner = self._y1 - self._y0 - 1  # rows inside the border
-        self._bar = max(_FONT, inner * 27 // 100)    # top/bottom bar height
-        self._mid = inner - 2 * self._bar            # highlighted bar height
+        self._bar = max(_FONT, inner * 27 // 100)  # top/bottom bar height
+        self._mid = inner - 2 * self._bar  # highlighted bar height
         self._top_y = self._y0 + 1
         self._mid_y = self._top_y + self._bar
         self._bot_y = self._mid_y + self._mid
         self._icon_x = self._x0 + 4
         self._text_x = self._icon_x + _stars.STAR_W + 4
-        self._side_x = self._x0 + 13     # text start in top/bottom bars
+        self._side_x = self._x0 + 13  # text start in top/bottom bars
 
     # ----------------------------------------------------------- rendering
     def _render(self, i, flash):
@@ -114,28 +112,24 @@ class Menu:
         if i > 0:
             ty = self._top_y + (self._bar - _FONT) // 2
             self._caret(fb, self._x0 + 4, ty + 2, True, 1)
-            fb.text(self._fit(self.options[i - 1], self._side_x), self._side_x,
-                    ty, 1)
+            fb.text(self._fit(self.options[i - 1], self._side_x), self._side_x, ty, 1)
         # bottom bar: next option (blank on the last option)
         if i < n - 1:
             ty = self._bot_y + (self._bar - _FONT) // 2
             self._caret(fb, self._x0 + 4, ty + 3, False, 1)
-            fb.text(self._fit(self.options[i + 1], self._side_x), self._side_x,
-                    ty, 1)
+            fb.text(self._fit(self.options[i + 1], self._side_x), self._side_x, ty, 1)
         # middle bar: current option, highlighted (inverted when flashing)
         bar, ink = (0, 1) if flash else (1, 0)
-        fb.fill_rect(self._x0 + 1, self._mid_y, self._x1 - self._x0 - 1,
-                     self._mid, bar)
+        fb.fill_rect(self._x0 + 1, self._mid_y, self._x1 - self._x0 - 1, self._mid, bar)
         icon = self.icons[i] if self.icons else None
         if icon is None:
             icon_fb, icon_w, icon_h = _ICON, _stars.STAR_W, _stars.STAR_H
         else:
             icon_w, icon_h = icon[1], icon[2]
-            icon_fb = _framebuf.FrameBuffer(icon[0], icon_w, icon_h,
-                                            _framebuf.MONO_HLSB)
+            icon_fb = _framebuf.FrameBuffer(icon[0], icon_w, icon_h, _framebuf.MONO_HLSB)
         iy = self._mid_y + (self._mid - icon_h) // 2
         if ink:
-            fb.blit(icon_fb, self._icon_x, iy, 0)             # lit icon, dark kept
+            fb.blit(icon_fb, self._icon_x, iy, 0)  # lit icon, dark kept
         else:
             fb.blit(icon_fb, self._icon_x, iy, 1, _ICON_DARK)  # dark icon on the lit bar
         text_x = self._icon_x + icon_w + 4
@@ -146,7 +140,7 @@ class Menu:
     def _fit(self, label, x):
         room = max(1, (self._x1 - x) // _FONT)
         if len(label) > room:
-            label = label[:room - 1] + "~"
+            label = label[: room - 1] + "~"
         return label
 
     def _caret(self, fb, x, y, up, c):
@@ -158,19 +152,18 @@ class Menu:
 
     def _border(self, fb):
         x0, y0, x1, y1 = self._x0, self._y0, self._x1, self._y1
-        fb.hline(x0 + 2, y0, x1 - x0 - 4, 1)            # top
-        fb.hline(x0 + 2, y1, x1 - x0 - 4, 1)            # bottom
-        fb.vline(x0, y0 + 2, y1 - y0 - 3, 1)            # left
-        fb.vline(x1, y0 + 3, y1 - y0 - 5, 1)            # right
-        fb.pixel(x0 + 1, y0 + 1, 1)                     # rounded left corners
+        fb.hline(x0 + 2, y0, x1 - x0 - 4, 1)  # top
+        fb.hline(x0 + 2, y1, x1 - x0 - 4, 1)  # bottom
+        fb.vline(x0, y0 + 2, y1 - y0 - 3, 1)  # left
+        fb.vline(x1, y0 + 3, y1 - y0 - 5, 1)  # right
+        fb.pixel(x0 + 1, y0 + 1, 1)  # rounded left corners
         fb.pixel(x0 + 1, y1 - 1, 1)
-        fb.line(x1 - 2, y0, x1, y0 + 2, 1)              # cut right corners
+        fb.line(x1 - 2, y0, x1, y0 + 2, 1)  # cut right corners
         fb.line(x1 - 2, y1, x1, y1 - 2, 1)
 
     # ------------------------------------------------------------- showing
     def _show(self, buf):
-        frame = _framebuf.FrameBuffer(buf, self.width, self.height,
-                                      _framebuf.MONO_HLSB)
+        frame = _framebuf.FrameBuffer(buf, self.width, self.height, _framebuf.MONO_HLSB)
         if self._pal is None:
             self.fb.blit(frame, 0, 0)
         else:
@@ -188,7 +181,7 @@ class Menu:
         """Show the next option. After the last one, wraps to the first.
         Returns the new index."""
         self._index += 1
-        if self._index >= len(self.options):     # bounds check
+        if self._index >= len(self.options):  # bounds check
             self._index = 0
         self.display()
         return self._index
@@ -197,7 +190,7 @@ class Menu:
         """Show the previous option. Before the first one, wraps to the last.
         Returns the new index."""
         self._index -= 1
-        if self._index < 0:                      # bounds check
+        if self._index < 0:  # bounds check
             self._index = len(self.options) - 1
         self.display()
         return self._index
