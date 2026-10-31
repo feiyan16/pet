@@ -554,8 +554,8 @@ def run_single_player(pet):
 
 # While searching: your ID (so others can pick you), ". .. ..." and how to cancel
 def search_text():
-    me = "you: " + my_id()
-    return tuple(((me, 16), (dots, 28), ("L: cancel", 40)) for dots in (".  ", ".. ", "..."))
+    me = my_id()
+    return tuple(((me, 16), (dots, 28)) for dots in ("   ", ".  ", ".. ", "..."))
 
 
 # While waiting for the person you picked to pick you too
