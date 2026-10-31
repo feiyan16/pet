@@ -14,8 +14,8 @@ import sys
 import time
 
 DEBUG, INFO, WARN, ERROR = 10, 20, 30, 40
-LOG_LEVEL = INFO              # console prints this level and up
-LOG_FILE_LEVEL = WARN         # the file keeps this level and up
+LOG_LEVEL = INFO  # console prints this level and up
+LOG_FILE_LEVEL = DEBUG  # the file keeps this level and up
 LOG_FILE = "log.txt"
 LOG_OLD = "log.old.txt"
 LOG_MAX_BYTES = 8 * 1024
@@ -27,8 +27,11 @@ def log(level, *parts):
     """log(INFO, "anything", 42, ...): one line, stamped with ms since boot."""
     if level < LOG_LEVEL and level < LOG_FILE_LEVEL:
         return
-    line = "%8d %-5s %s" % (time.ticks_ms(), _NAMES.get(level, level),
-                            " ".join(str(p) for p in parts))
+    line = "%8d %-5s %s" % (
+        time.ticks_ms(),
+        _NAMES.get(level, level),
+        " ".join(str(p) for p in parts),
+    )
     if level >= LOG_LEVEL:
         print(line)
     if level >= LOG_FILE_LEVEL:
@@ -46,30 +49,36 @@ def log_boot():
     """One line at start-up saying why the board started (power-on, deep sleep wake...)."""
     try:
         import machine
-        causes = {machine.PWRON_RESET: "power on", machine.HARD_RESET: "hard reset",
-                  machine.WDT_RESET: "watchdog", machine.DEEPSLEEP_RESET: "deep sleep wake",
-                  machine.SOFT_RESET: "soft reset"}
+
+        causes = {
+            machine.PWRON_RESET: "power on",
+            machine.HARD_RESET: "hard reset",
+            machine.WDT_RESET: "watchdog",
+            machine.DEEPSLEEP_RESET: "deep sleep wake",
+            machine.SOFT_RESET: "soft reset",
+        }
         cause = causes.get(machine.reset_cause(), machine.reset_cause())
     except (ImportError, AttributeError):
         cause = "unknown"
-    log(WARN, "---- boot:", cause)    # WARN so every boot is also marked in the file
+    log(WARN, "---- boot:", cause)  # WARN so every boot is also marked in the file
+    return cause
 
 
 def _write(text, err=None):
     try:
         try:
-            if os.stat(LOG_FILE)[6] > LOG_MAX_BYTES:     # [6] = file size
+            if os.stat(LOG_FILE)[6] > LOG_MAX_BYTES:  # [6] = file size
                 try:
                     os.remove(LOG_OLD)
                 except OSError:
                     pass
                 os.rename(LOG_FILE, LOG_OLD)
         except OSError:
-            pass                                         # no log file yet
+            pass  # no log file yet
         with open(LOG_FILE, "a") as f:
             if err is None:
                 f.write(text)
             else:
                 sys.print_exception(err, f)
     except OSError:
-        pass                                             # never let logging crash the keychain
+        pass  # never let logging crash the keychain
