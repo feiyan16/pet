@@ -139,7 +139,7 @@ pet_face = face_from_json(pet_text) if pet_text is not None else None
 gc.collect()
 
 if pet_face is None:
-    oled.poweron()                                   # in case deep sleep left it off
+    oled.poweron()  # in case deep sleep left it off
     # 1. "hello!" typed over the star intro, a 3 s pause, then load everything behind the stars
     #    (see the notes above). on_error="raise": a failed import shows
     #    "loading failed", prints the traceback, and stops here instead of
@@ -161,8 +161,8 @@ if pet_face is None:
     oled.poweroff()
     machine.deepsleep(3000)                          # restart into pet mode after 3 s
 else:
-    oled.poweron()
     log(INFO, "pet loaded:", pet_face.name)
+    loading_screen.run(text=LOADING_TEXT, intro_text=HELLO_TEXT, pause_ms=HELLO_PAUSE_MS)
     pet_face.sleep()                                 # shown asleep while pet mode loads
     for _ in pet_mode_loading():
         pet_face.update()                            # the Zzz moves on between imports
