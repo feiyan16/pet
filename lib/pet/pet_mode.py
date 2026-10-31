@@ -13,7 +13,6 @@ from utils import scroll, back, Choice, btn_handler, wait_release
 from connect import radio_off
 from logger import log, log_exception, DEBUG, INFO, WARN
 
-
 # --- pet mode settings -------------------------------------------------------
 IDLE_SLEEP_MS = 45000       # no touch for this long in pet mode = get sleepy, then deep sleep
 PAT_TOO_FAST_MS = 250       # two pats closer together than this count as "too fast"...
@@ -37,12 +36,12 @@ def reset(f):
     f.horiz_flicker(False)
     f.vert_flicker(False)
     f.talk(False)
-    f.wake()                   # also opens the eyes
+    f.wake()  # also opens the eyes
 
 
 def curious(f):
     f.set_mood(CURIOUS)
-    f.set_position(W)          # CURIOUS shows when looking to a side
+    f.set_position(W)  # CURIOUS shows when looking to a side
 
 
 def curious_other_side(f):
@@ -115,11 +114,14 @@ def build_cycle(pet, steps):
     seq = pet.sequences.add("all expressions")
     t = 0
     for ms, name, action in steps:
+
         def step(pet, name=name, action=action):
             action(pet)
+
         seq.step(t, step)
         t += ms
     return seq
+
 
 # # visit all 8 positions, 400 ms each, then back to the centre. Built once
 # # and restarted each cycle (building it inside the step would add a new
@@ -166,15 +168,15 @@ class PetMode:
         log(INFO, "waking up")
         f = self.pet
         self._still()
-        f.sleep()                        # start asleep: eyes closed, Zzz
-        self._hold(1500)
-        f.wake()                         # eyes open...
-        f.set_mood(TIRED)                # ...but the eyelids are still heavy
+        f.sleep()  # start asleep: eyes closed, Zzz
+        self._hold(800)
+        f.wake()  # eyes open...
+        f.set_mood(TIRED)  # ...but the eyelids are still heavy
         self._hold(700)
-        for gap in (800, 500, 1000):     # slow, uneven blinks: still waking up
+        for gap in (800, 500, 1000):  # slow, uneven blinks: still waking up
             f.blink()
             self._hold(gap)
-        f.set_mood(HAPPY)                # awake and glad to see you
+        f.set_mood(HAPPY)  # awake and glad to see you
         self._hold(1500)
         reset(f)
         self._lively()
@@ -191,63 +193,72 @@ class PetMode:
         goal = random.randint(PAT_LOVE_MIN, PAT_LOVE_MAX)
         log(DEBUG, "pat goal:", goal)
         pats = 0
-        too_fast = 0                     # too-fast gaps in a row
+        too_fast = 0  # too-fast gaps in a row
         last_pat = None
-        spot = DEFAULT                   # where the last pat moved the face
+        spot = DEFAULT  # where the last pat moved the face
 
         tap = Choice(None)
 
         def on_left():
             tap.value = "leave"
 
-        def on_right():                  # called when RIGHT is let go
+        def on_right():  # called when RIGHT is let go
             tap.value = "pat"
 
-        wait_release()                   # the press that chose "Pat" isn't a pat
+        wait_release()  # the press that chose "Pat" isn't a pat
         l_prsd, r_prsd = False, False
         while True:
             f.update()
             was_r = r_prsd
-            both, l_prsd, r_prsd = btn_handler(left_btn.value(), right_btn.value(),
-                                               l_prsd, r_prsd, l_action=on_left, r_action=on_right)
+            both, l_prsd, r_prsd = btn_handler(
+                left_btn.value(),
+                right_btn.value(),
+                l_prsd,
+                r_prsd,
+                l_action=on_left,
+                r_action=on_right,
+            )
             if tap.value == "leave":
                 log(INFO, "pat: stopped after", pats, "pats")
                 break
-            if both:                                 # both pads together isn't a pat:
-                f.set_mood(DEFAULT)                  # don't leave the face stuck off-centre
+            if both:  # both pads together isn't a pat:
+                f.set_mood(DEFAULT)  # don't leave the face stuck off-centre
                 f.set_position(DEFAULT)
                 continue
 
-            if r_prsd and not was_r:                 # RIGHT just touched: happy, somewhere new
+            if r_prsd and not was_r:  # RIGHT just touched: happy, somewhere new
                 spot = random.choice([d for d in PAT_SPOTS if d != spot])
                 f.set_mood(HAPPY)
                 f.set_position(spot)
             if tap.value != "pat":
                 continue
-            tap.value = None                         # RIGHT just let go: one pat done
-            f.set_mood(DEFAULT)                      # back to the middle, normal eyes
+            tap.value = None  # RIGHT just let go: one pat done
+            f.set_mood(DEFAULT)  # back to the middle, normal eyes
             f.set_position(DEFAULT)
 
             now = time.ticks_ms()
-            if last_pat is not None and time.ticks_diff(now, last_pat) < PAT_TOO_FAST_MS:
+            if (
+                last_pat is not None
+                and time.ticks_diff(now, last_pat) < PAT_TOO_FAST_MS
+            ):
                 too_fast += 1
             else:
                 too_fast = 0
             last_pat = now
-            if too_fast >= PAT_TOO_FAST_TAPS - 1:    # N fast taps = N - 1 short gaps
+            if too_fast >= PAT_TOO_FAST_TAPS - 1:  # N fast taps = N - 1 short gaps
                 log(INFO, "pat: too fast, pet got angry")
-                f.confuse()                          # "what are you doing?"
+                f.confuse()  # "what are you doing?"
                 self._hold(700)
-                f.set_mood(ANGRY)                    # "stop that!"
+                f.set_mood(ANGRY)  # "stop that!"
                 self._hold(1800)
-                break                                # patting ends
+                break  # patting ends
 
             pats += 1
             if pats >= goal:
                 log(INFO, "pat: LOVE after", pats, "pats")
-                f.set_mood(LOVE)                     # heart eyes, in the middle...
+                f.set_mood(LOVE)  # heart eyes, in the middle...
                 self._hold(LOVE_SHOW_MS)
-                f.set_mood(HAPPY)                    # ...turn back into happy eyes...
+                f.set_mood(HAPPY)  # ...turn back into happy eyes...
                 self._hold(LOVE_BACK_MS)
                 # ...then laugh and bounce.
                 # laugh() moves the face up/down once per frame; at 50 fps that is
@@ -256,19 +267,19 @@ class PetMode:
                 f._period = LAUGH_BOUNCE_MS
                 try:
                     for _ in range(LOVE_LAUGH_MS // LAUGH_STEP_MS):
-                        f.laugh()                    # re-started so it keeps laughing
+                        f.laugh()  # re-started so it keeps laughing
                         self._hold(LAUGH_STEP_MS)
-                    self._hold(500)                  # let the last laugh finish, still slow
+                    self._hold(500)  # let the last laugh finish, still slow
                 finally:
-                    f._period = normal_period        # back to the normal frame rate
+                    f._period = normal_period  # back to the normal frame rate
                 self._hold(400)
-                break                                # patting ends after the laugh
+                break  # patting ends after the laugh
 
         reset(f)
-        oled.fill(0)                     # leaving pat mode: blank for a moment...
+        oled.fill(0)  # leaving pat mode: blank for a moment...
         oled.show()
         time.sleep_ms(EXIT_BLANK_MS)
-        self._lively()                   # ...then the pet is back (next update draws it)
+        self._lively()  # ...then the pet is back (next update draws it)
         wait_release()
 
     # ---------------------------------------------------------------------- feed
@@ -285,14 +296,16 @@ class PetMode:
         stomach_size = random.randrange(30, 103, 6)
         l_prsd, r_prsd = False, False
         while stomach_size > 0:
-            l, r = left_btn.value(), right_btn.value()           # read each button once per pass
+            l, r = left_btn.value(), right_btn.value()  # read each button once per pass
 
-            _, l_prsd, r_prsd = btn_handler(l, r, l_prsd, r_prsd, l_action=go_left, r_action=go_right)
+            _, l_prsd, r_prsd = btn_handler(
+                l, r, l_prsd, r_prsd, l_action=go_left, r_action=go_right
+            )
 
             if direction.value is not None:
                 stomach_size -= _FEED_STARS
                 pet.feed(direction.value)
-                direction.value = None            # one feed per tap
+                direction.value = None  # one feed per tap
 
             pet.update()
 
@@ -303,7 +316,9 @@ class PetMode:
         def chosen(_, index, __):
             game.value = [jump.run, shooter.run, back][index]
 
-        game_menu = Menu(oled, OLED_W, OLED_H, ["Jump", "Shoot", "Back"], on_select=chosen)
+        game_menu = Menu(
+            oled, OLED_W, OLED_H, ["Jump", "Shoot", "Back"], on_select=chosen
+        )
         scroll(game_menu)
         if game.value is not None:
             game.value(self)
@@ -323,18 +338,19 @@ class PetMode:
     # ---------------------------------------------------------------- sleeping
     def go_to_sleep(self):
         """Drowsy blinks -> TIRED -> asleep (Zzz) -> deep sleep until a pad is touched.
-        Touching a pad before deep sleep starts cancels it and the pet wakes up again."""
+        Touching a pad before deep sleep starts cancels it and the pet wakes up again.
+        """
         log(INFO, "45 s idle: getting sleepy")
         f = self.pet
         self._still()
-        for gap in (1000, 800, 600):           # blinks coming closer together: getting sleepy
+        for gap in (1000, 800, 600):  # blinks coming closer together: getting sleepy
             f.blink()
             if self._hold(gap, stop_on_touch=True):
                 return self._cancel_sleep()
         f.set_mood(TIRED)
         if self._hold(2000, stop_on_touch=True):
             return self._cancel_sleep()
-        f.sleep()                              # eyes close, Zzz
+        f.sleep()  # eyes close, Zzz
         if self._hold(3000, stop_on_touch=True):
             return self._cancel_sleep()
         self._deep_sleep()
@@ -344,24 +360,27 @@ class PetMode:
         self.pet.wake()
         reset(self.pet)
         self._lively()
-        wait_release()                         # the touch that woke it isn't a menu tap
+        wait_release()  # the touch that woke it isn't a menu tap
 
     def _deep_sleep(self):
         """Screen off, then deep sleep until either pad is touched. Waking restarts the
         board: main.py runs again and the pet does its wake-up animation."""
-        radio_off()                            # in case a 2-player game left it on
-        # oled.poweroff()
-        wait_release()                         # a pad held now would wake it at once
-        if hasattr(esp32, "wake_on_gpio"):     # MicroPython versions with GPIO deep-sleep wake
-            level = getattr(esp32, "WAKEUP_ANY_HIGH", True)    # TTP223: HIGH while touched
+        radio_off()  # in case a 2-player game left it on
+        wait_release()  # a pad held now would wake it at once
+        if hasattr(
+            esp32, "wake_on_gpio"
+        ):  # MicroPython versions with GPIO deep-sleep wake
+            level = getattr(
+                esp32, "WAKEUP_ANY_HIGH", True
+            )  # TTP223: HIGH while touched
             esp32.wake_on_gpio((left_btn, right_btn), level)
             log(WARN, "deep sleep until a pad is touched")
-            machine.deepsleep()                # does not return
+            machine.deepsleep()  # does not return
         # older firmware without wake_on_gpio: light sleep, checking the pads 5 times a second
         log(WARN, "no esp32.wake_on_gpio in this firmware: light-sleep fallback")
         while not (left_btn.value() or right_btn.value()):
             machine.lightsleep(200)
-        machine.reset()                        # restart through main.py, as deep sleep would
+        machine.reset()  # restart through main.py, as deep sleep would
 
     # --------------------------------------------------------------------- run
     def run(self):
@@ -371,7 +390,13 @@ class PetMode:
             log(INFO, "menu choice:", index)
             action.value = [self.pat, self.feed, self.play, self.demo, back][index]
 
-        pet_menu = Menu(oled, OLED_W, OLED_H, ["Pat", "Feed", "Play", "Demo", "Back"], on_select=chosen)
+        pet_menu = Menu(
+            oled,
+            OLED_W,
+            OLED_H,
+            ["Pat", "Feed", "Play", "Demo", "Back"],
+            on_select=chosen,
+        )
 
         self._lively()
 
@@ -382,32 +407,34 @@ class PetMode:
         def display_menu():
             display.value = True
 
-        last_touch = time.ticks_ms()             # for the 45 s sleep timer
+        last_touch = time.ticks_ms()  # for the 45 s sleep timer
         while True:
             self.pet.update()
 
             l, r = left_btn.value(), right_btn.value()
             if l or r:
-                last_touch = time.ticks_ms()     # any touch counts as an interaction
+                last_touch = time.ticks_ms()  # any touch counts as an interaction
 
             _, l_prsd, r_prsd = btn_handler(l, r, l_prsd, r_prsd, r_action=display_menu)
 
             if display.value:
-                display.value = False           # handle this request once
-                action.value = None               # forget the last choice
+                display.value = False  # handle this request once
+                action.value = None  # forget the last choice
                 scroll(pet_menu)
 
-                wait_release()                                  # let go of the pads first
-                l_prsd, r_prsd = False, False                   # the release isn't a new tap
+                wait_release()  # let go of the pads first
+                l_prsd, r_prsd = False, False  # the release isn't a new tap
 
                 if action.value is not None:
                     try:
                         action.value()
                     except Exception as err:
                         log_exception(err, "menu action failed")
-                last_touch = time.ticks_ms()     # the menu and its action were interactions
+                last_touch = (
+                    time.ticks_ms()
+                )  # the menu and its action were interactions
 
             if time.ticks_diff(time.ticks_ms(), last_touch) >= IDLE_SLEEP_MS:
-                self.go_to_sleep()               # only returns if a pad was touched in time
+                self.go_to_sleep()  # only returns if a pad was touched in time
                 l_prsd, r_prsd = False, False
                 last_touch = time.ticks_ms()
