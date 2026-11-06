@@ -6,7 +6,7 @@
 #     receiver said GOT     -> "sent!" for SENT_MS
 #     no GOT in REPLY_MS    -> popup "<ID> is busy"
 # Receiver (only while its face is idle in PetMode.run(), the only time its radio is on):
-#   envelope glides in to the middle -> popup "<ID>:\n<message>"  [ok]
+#   envelope glides in to the middle -> popup "<ID>:\n<message>" (no button; tap either pad to close)
 #
 # Messages (4 bytes, see connect.py): MSG (value = index into MESSAGES), GOT.
 
@@ -14,7 +14,7 @@ import time
 import random
 import framebuf
 
-from peripherals import oled, OLED_W, OLED_H
+from peripherals import oled, OLED_W, OLED_H, left_btn, right_btn
 from connect import e, parse, pack, safe_send, add_peer, drain, short_id, MSG, GOT
 from bitmaps import mail, stars
 from ui.menu import Menu
@@ -115,8 +115,11 @@ def receive(mac, index):
     log(INFO, "message from", who, ":", text)
     fly(stop_x=(OLED_W - mail.ENVELOPE_W) // 2)
     time.sleep_ms(ARRIVED_MS)
-    scroll(Popup(oled, who + ":\n" + text, ["ok"]))
-    wait_release()
+    Popup(oled, who + ":\n" + text, []).display()  # no button: it stays until a pad is tapped
+    wait_release()  # a finger already down doesn't count
+    while not (left_btn.value() or right_btn.value()):
+        time.sleep_ms(20)
+    wait_release()  # the tap that closed it isn't a menu tap
     drain()  # the sender's repeats of the same MSG
     oled.fill(0)
     oled.show()

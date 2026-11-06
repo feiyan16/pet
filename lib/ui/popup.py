@@ -5,10 +5,18 @@
 # is already there:
 #
 #     +----------------------------+
-#     |      Quit the game?        |   text, word-wrapped (up to 3 lines)
+#     |      Quit the game?        |   text, word-wrapped
 #     |                            |
 #     |   [ Yes ]      No          |   options: the current one highlighted
 #     +----------------------------+
+#
+# The window grows with the text: today's size while the text fits in 3
+# lines, then the full screen width, then the full screen height, and last
+# tighter line spacing. Text that still doesn't fit ends with "~". A 1-line
+# popup's size is the minimum.
+#
+# options=[] gives a window with no buttons (just the text, centred); the
+# caller decides how it closes.
 #
 # If the options don't fit side by side, one option is shown at a time as
 # "<  option  >".
@@ -27,7 +35,8 @@ import time as _time
 
 _FONT = 8  # built-in FrameBuffer font is 8 x 8 px
 _LINE = 10  # text line height (px)
-_MAX_LINES = 3  # most text lines the window shows
+_TIGHT_LINE = 8  # line height when the text needs the whole screen and more
+_MAX_LINES = 3  # most text lines before the window grows past its normal size
 _BTN_H = 11  # option button height (px)
 _BTN_PAD = 3  # space left/right of an option's text inside its button
 
@@ -50,7 +59,7 @@ class Popup:
         """
         fb        : FrameBuffer of the display to draw on
         text      : message shown at the top of the window (word-wrapped)
-        options   : list of option labels, e.g. ["Yes", "No"]
+        options   : list of option labels, e.g. ["Yes", "No"]; [] = no buttons
         width,
         height    : screen size in pixels (the window is centred in it)
         win_w     : window width in px (default: screen width - 8)
@@ -61,8 +70,6 @@ class Popup:
         bgcolor   : colours for colour displays (defaults suit mono OLEDs)
         flash_ms  : how long select() shows the inverted option
         """
-        if not options:
-            raise ValueError("options must contain at least one item")
         self.fb = fb
         self.width = width
         self.height = height
@@ -82,22 +89,35 @@ class Popup:
             self._pal.pixel(1, 0, fgcolor)
 
         self._layout(win_w)
-        # one 1-bit frame per option, window-sized (not full screen)
-        self.frames = [self._render(i, False) for i in range(len(self.options))]
+        # one 1-bit frame per option (one frame if there are none), window-sized
+        self.frames = [self._render(i, False) for i in range(max(1, len(self.options)))]
 
     # ------------------------------------------------------------ geometry
     def _layout(self, win_w):
-        ww = min(self.width, win_w or self.width - 8)
-        cols = max(1, (ww - 8) // _FONT)  # text chars per line
-        self._lines = self._wrap(self.text, cols)
+        # space under the text: the button row, or just a margin when there are no buttons
+        below = 3 + _BTN_H + 4 if self.options else 4
+        min_h = 4 + _LINE + 3 + _BTN_H + 4  # a 1-line popup with buttons: the smallest window
+        normal_w = min(self.width, win_w or self.width - 8)
+        # try bigger and bigger windows until the text fits (the last one cuts it with "~")
+        tries = (
+            (normal_w, _LINE, _MAX_LINES),
+            (self.width, _LINE, (self.height - 4 - below) // _LINE),
+            (self.width, _TIGHT_LINE, (self.height - 4 - below) // _TIGHT_LINE),
+        )
+        for ww, line_h, max_lines in tries:
+            lines = self._wrap(self.text, max(1, (ww - 8) // _FONT), None)
+            if len(lines) <= max_lines:
+                break
+        self._lines = self._wrap(self.text, max(1, (ww - 8) // _FONT), max_lines)
+        self._line = line_h
         # options side by side if they fit, otherwise one at a time
         widths = [len(o) * _FONT + 2 * _BTN_PAD for o in self.options]
         gap = 4
         self._row = sum(widths) + gap * (len(widths) - 1) <= ww - 8
         self._btn_w = widths
         self._gap = gap
-        wh = 4 + len(self._lines) * _LINE + 3 + _BTN_H + 4
-        wh = min(self.height, wh)
+        wh = 4 + len(self._lines) * line_h + below
+        wh = min(self.height, max(min_h, wh))
         self.win_w = ww
         self.win_h = wh
         self.win_x = (self.width - ww) // 2
@@ -105,7 +125,9 @@ class Popup:
         self._btn_y = wh - 4 - _BTN_H
 
     @staticmethod
-    def _wrap(text, cols):
+    def _wrap(text, cols, max_lines):
+        """Word-wrap text into lines of at most cols characters. max_lines=None: all
+        lines; otherwise at most max_lines, the last one ending in "~" if text was cut."""
         lines = []
         for para in text.split("\n"):
             line = ""
@@ -124,8 +146,8 @@ class Popup:
                     lines.append(line)
                     line = word
             lines.append(line)
-        if len(lines) > _MAX_LINES:
-            lines = lines[:_MAX_LINES]
+        if max_lines is not None and len(lines) > max_lines:
+            lines = lines[:max_lines]
             last = lines[-1]
             lines[-1] = (last[: cols - 1] if len(last) >= cols else last) + "~"
         return lines
@@ -137,11 +159,13 @@ class Popup:
         buf = bytearray(((w + 7) // 8) * h)
         fb = _framebuf.FrameBuffer(buf, w, h, _framebuf.MONO_HLSB)
         self._border(fb, w, h)
-        # text, each line centred
-        y = 4
+        # text, each line centred (in the middle of the window when there are no buttons)
+        y = 4 if self.options else (h - len(self._lines) * self._line) // 2 + 1
         for line in self._lines:
             fb.text(line, (w - len(line) * _FONT) // 2, y, 1)
-            y += _LINE
+            y += self._line
+        if not self.options:
+            return buf
         by = self._btn_y
         ty = by + (_BTN_H - _FONT) // 2 + 1
         if self._row:
@@ -218,6 +242,8 @@ class Popup:
     def next(self):
         """Highlight the next option and redraw. After the last option it
         wraps to the first. Returns the new index."""
+        if not self.options:
+            return 0
         self._index += 1
         if self._index >= len(self.options):  # bounds check
             self._index = 0
@@ -227,6 +253,8 @@ class Popup:
     def prev(self):
         """Highlight the previous option and redraw. Before the first option
         it wraps to the last. Returns the new index."""
+        if not self.options:
+            return 0
         self._index -= 1
         if self._index < 0:  # bounds check
             self._index = len(self.options) - 1
@@ -236,7 +264,9 @@ class Popup:
     def select(self):
         """Flash the highlighted option inverted for flash_ms, show the
         normal frame again, then call on_select(popup, index, label).
-        Returns the label. Blocks for flash_ms."""
+        Returns the label (None if there are no options). Blocks for flash_ms."""
+        if not self.options:
+            return None
         self._show(self._render(self._index, True))
         _time.sleep_ms(self.flash_ms)
         self.display()
@@ -259,8 +289,8 @@ class Popup:
 
     @property
     def current(self):
-        """Label of the current option."""
-        return self.options[self._index]
+        """Label of the current option (None if there are no options)."""
+        return self.options[self._index] if self.options else None
 
     def __len__(self):
         return len(self.options)
