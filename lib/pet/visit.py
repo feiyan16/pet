@@ -17,7 +17,7 @@ import framebuf
 from peripherals import oled, OLED_W, OLED_H, left_btn
 from roboface.roboface import *
 from connect import e, parse, pack, safe_send, add_peer, radio_on, drain, short_id, my_id, BCAST
-from connect import SCAN, HERE, ASK, SEEN, YES, NO, END
+from connect import SCAN, HERE, ASK, SEEN, YES, NO, END, MSG
 from bitmaps import characters
 from ui.popup import Popup
 from ui import loading_screen
@@ -47,16 +47,17 @@ def _send_n(mac, kind, value=0):
 # ============================================================== host side
 def listen(name_idx):
     """Call often while the face is idle (radio on). Answers SCAN with HERE.
-    Returns (mac, their pet index) when someone ASKs to visit, else None. Never blocks."""
+    Returns (kind, mac, value) when someone ASKs to visit (value = their pet index)
+    or sends a MSG (value = message index, see pet/message.py), else None. Never blocks."""
     while e.any():
         mac, msg = e.recv(0)
         kind, value = parse(msg)
         if kind == SCAN:
             add_peer(mac)
             safe_send(mac, pack(HERE, name_idx))
-        elif kind == ASK:
+        elif kind == ASK or kind == MSG:
             add_peer(mac)
-            return mac, value
+            return kind, mac, value
     return None
 
 
@@ -276,17 +277,17 @@ def visitor_sequence(mac):
     log(INFO, "visit: no END from host, stopping")
 
 
-def _note(text):
+def note(text):
     oled.fill(0)
     scroll(Popup(oled, text, ["ok"]))
     wait_release()
 
 
-def visit(pet_mode):
-    """The "Visit" menu item."""
+def find_friend():
+    """Search for idle keychains and let the person pick one (used by Visit and Message).
+    Returns their mac, or None (nobody found, cancelled with LEFT, "back" or timed out)."""
     from games.shooter import search_text, pick_from_list, AGAIN  # same search screen and list
 
-    my_idx = characters.NAMES.index(pet_mode.name)
     scan = Scan()
     cancel = lambda: left_btn.value() == 1
     while True:
@@ -296,14 +297,20 @@ def visit(pet_mode):
         finally:
             anim.close()
         if not found:
-            break
+            return None
         choice = pick_from_list(scan)
         wait_release()
         if choice is AGAIN:  # (not ==: choice may be a MAC, i.e. bytes)
             scan.found.clear()
             continue
-        if choice is None:
-            break
+        return choice
+
+
+def visit(pet_mode):
+    """The "Visit" menu item."""
+    my_idx = characters.NAMES.index(pet_mode.name)
+    choice = find_friend()
+    if choice is not None:
         who = short_id(choice)
         anim = loading_screen.Animation(text=asking_text(), intro=False)
         try:
@@ -314,10 +321,9 @@ def visit(pet_mode):
         if answer == "yes":
             visitor_sequence(choice)
         elif answer == "busy":
-            _note(who + " is busy")
+            note(who + " is busy")
         else:
-            _note(who + " declined your visit")
-        break
+            note(who + " declined your visit")
     oled.fill(0)
     oled.show()
     drain()

@@ -37,6 +37,9 @@ SEEN = 13  # got your ASK, asking my person    value unused
 YES = 14  # visit accepted                    value unused
 NO = 15  # visit declined (or no answer)     value unused
 END = 16  # the visit is over                 value unused
+# messages (pet/message.py)
+MSG = 17  # a message for you                value = message index
+GOT = 18  # reply to MSG: got it             value unused
 
 BCAST = b"\xff" * 6  # broadcast address: every ESP-NOW device in range
 

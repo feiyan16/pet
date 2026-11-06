@@ -11,7 +11,8 @@ from games import jump, shooter
 from bitmaps import characters
 from utils import scroll, back, Choice, btn_handler, wait_release
 from connect import radio_on, radio_off, drain
-from pet import visit
+from pet import visit, message
+from connect import ASK
 from logger import log, log_exception, DEBUG, INFO, WARN
 
 # --- pet mode settings -------------------------------------------------------
@@ -319,6 +320,9 @@ class PetMode:
     def visit(self):
         visit.visit(self)
 
+    def message(self):
+        message.send(self)
+
     def demo(self):
         pet = self.pet.copy()
         all_expressions = build_cycle(pet, ALL_EXPRESSIONS)
@@ -398,9 +402,11 @@ class PetMode:
 
         def chosen(_, index, __):
             log(INFO, "menu choice:", index)
-            action.value = [self.pat, self.feed, self.play, self.visit, self.demo, back][index]
+            action.value = [self.pat, self.feed, self.play, self.visit, self.message, self.demo, back][index]
 
-        pet_menu = Menu(oled, OLED_W, OLED_H, ["Pat", "Feed", "Play", "Visit", "Demo", "Back"], on_select=chosen)
+        pet_menu = Menu(
+            oled, OLED_W, OLED_H, ["Pat", "Feed", "Play", "Visit", "Message", "Demo", "Back"], on_select=chosen
+        )
         name_idx = characters.NAMES.index(self.name)
 
         self._lively()
@@ -434,16 +440,20 @@ class PetMode:
                 mood_until = None
                 next_mood = self._next_mood_at()
 
-            # ---- a friend asking to visit (and answering friends who search)
+            # ---- a friend asking to visit or sending a message (and answering friends who search)
             request = visit.listen(name_idx)
             if request is not None:
                 if mood_until is not None:
                     self._end_idle_mood()
                     mood_until = None
+                kind, mac, value = request
                 try:
-                    visit.host(self, *request)
+                    if kind == ASK:
+                        visit.host(self, mac, value)
+                    else:
+                        message.receive(mac, value)
                 except Exception as err:
-                    log_exception(err, "visit failed")
+                    log_exception(err, "visit / message failed")
                 self._lively()
                 l_prsd, r_prsd = False, False
                 last_touch = time.ticks_ms()
