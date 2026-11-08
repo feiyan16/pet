@@ -10,7 +10,9 @@ from ui.menu import Menu
 from games import jump, shooter
 from bitmaps import characters
 from utils import scroll, back, Choice, btn_handler, wait_release
-from connect import radio_off
+from connect import radio_on, radio_off, drain
+from pet import visit, message
+from connect import ASK
 from logger import log, log_exception, DEBUG, INFO, WARN
 
 # --- pet mode settings -------------------------------------------------------
@@ -25,6 +27,10 @@ LOVE_LAUGH_MS = 3000  # how long it laughs after enough pats
 LAUGH_STEP_MS = 300  # how often the laugh is re-started (it lasts 500 ms)
 LAUGH_BOUNCE_MS = 150  # time between up and down while laughing (lower = faster)
 EXIT_BLANK_MS = 300  # blank screen when leaving pat mode, before the pet returns
+# idle moods: while the face is idle in run(), the pet picks a mood by itself now and then
+IDLE_MOODS = (HAPPY, CURIOUS, TIRED, LOVE)  # CURIOUS also looks to one side
+IDLE_MOOD_GAP_MS = (20000, 40000)  # random wait between moods (min, max)
+IDLE_MOOD_SHOW_MS = 3000  # how long a mood stays before going back to DEFAULT
 
 
 # --- small helpers for steps that do more than one thing --------------------
@@ -311,6 +317,12 @@ class PetMode:
         if game.value is not None:
             game.value(self)
 
+    def visit(self):
+        visit.visit(self)
+
+    def message(self):
+        message.send(self)
+
     def demo(self):
         pet = self.pet.copy()
         all_expressions = build_cycle(pet, ALL_EXPRESSIONS)
@@ -366,17 +378,39 @@ class PetMode:
             machine.lightsleep(200)
         machine.reset()  # restart through main.py, as deep sleep would
 
+    # ------------------------------------------------------------- idle moods
+    def _next_mood_at(self):
+        return time.ticks_add(time.ticks_ms(), random.randint(*IDLE_MOOD_GAP_MS))
+
+    def _idle_mood(self):
+        """Pick one of IDLE_MOODS by itself. Returns when it should go back to DEFAULT."""
+        mood = random.choice(IDLE_MOODS)
+        log(DEBUG, "idle mood:", mood)
+        self.pet.set_mood(mood)
+        if mood == CURIOUS:  # CURIOUS shows when looking to a side
+            self.pet.set_idle_mode(OFF)
+            self.pet.set_position(random.choice((W, E)))
+        return time.ticks_add(time.ticks_ms(), IDLE_MOOD_SHOW_MS)
+
+    def _end_idle_mood(self):
+        reset(self.pet)
+        self._lively()
+
     # --------------------------------------------------------------------- run
     def run(self):
         action = Choice(None)
 
         def chosen(_, index, __):
             log(INFO, "menu choice:", index)
-            action.value = [self.pat, self.feed, self.play, self.demo, back][index]
+            action.value = [self.pat, self.feed, self.play, self.visit, self.message, self.demo, back][index]
 
-        pet_menu = Menu(oled, OLED_W, OLED_H, ["Pat", "Feed", "Play", "Demo", "Back"], on_select=chosen)
+        pet_menu = Menu(
+            oled, OLED_W, OLED_H, ["Pat", "Feed", "Play", "Visit", "Message", "Demo", "Back"], on_select=chosen
+        )
+        name_idx = characters.NAMES.index(self.name)
 
         self._lively()
+        radio_on()  # the radio is on only while the face is idle here, so friends can visit
 
         l_prsd, r_prsd = False, False
 
@@ -386,6 +420,8 @@ class PetMode:
             display.value = True
 
         last_touch = time.ticks_ms()  # for the 45 s sleep timer
+        next_mood = self._next_mood_at()  # when the pet picks its next mood by itself
+        mood_until = None  # while an idle mood shows: when it goes back to DEFAULT
         while True:
             self.pet.update()
 
@@ -395,9 +431,41 @@ class PetMode:
 
             _, l_prsd, r_prsd = btn_handler(l, r, l_prsd, r_prsd, r_action=display_menu)
 
+            # ---- idle moods
+            now = time.ticks_ms()
+            if mood_until is None and time.ticks_diff(now, next_mood) >= 0:
+                mood_until = self._idle_mood()
+            elif mood_until is not None and time.ticks_diff(now, mood_until) >= 0:
+                self._end_idle_mood()
+                mood_until = None
+                next_mood = self._next_mood_at()
+
+            # ---- a friend asking to visit or sending a message (and answering friends who search)
+            request = visit.listen(name_idx)
+            if request is not None:
+                if mood_until is not None:
+                    self._end_idle_mood()
+                    mood_until = None
+                kind, mac, value = request
+                try:
+                    if kind == ASK:
+                        visit.host(self, mac, value)
+                    else:
+                        message.receive(mac, value)
+                except Exception as err:
+                    log_exception(err, "visit / message failed")
+                self._lively()
+                l_prsd, r_prsd = False, False
+                last_touch = time.ticks_ms()
+                next_mood = self._next_mood_at()
+
             if display.value:
                 display.value = False  # handle this request once
                 action.value = None  # forget the last choice
+                if mood_until is not None:
+                    self._end_idle_mood()
+                    mood_until = None
+                radio_off()  # busy: not visitable while the menu or an activity is up
                 scroll(pet_menu)
 
                 wait_release()  # let go of the pads first
@@ -408,9 +476,18 @@ class PetMode:
                         action.value()
                     except Exception as err:
                         log_exception(err, "menu action failed")
+                radio_on()  # idle again: back to being visitable
+                drain()  # messages left over from a game or visit
                 last_touch = time.ticks_ms()  # the menu and its action were interactions
+                next_mood = self._next_mood_at()
 
             if time.ticks_diff(time.ticks_ms(), last_touch) >= IDLE_SLEEP_MS:
+                if mood_until is not None:
+                    self._end_idle_mood()
+                    mood_until = None
+                radio_off()  # not visitable while falling asleep
                 self.go_to_sleep()  # only returns if a pad was touched in time
+                radio_on()
                 l_prsd, r_prsd = False, False
                 last_touch = time.ticks_ms()
+                next_mood = self._next_mood_at()

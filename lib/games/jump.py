@@ -53,6 +53,23 @@ GAP_MIN, GAP_MAX = (28, 50)  # space between obstacles, in frames of travel (a f
 HIT_MARGIN = 2  # shrinks the dino's hitbox so near misses feel fair
 RUN_FRAME_TICKS = 4  # frames between run-animation steps
 FRAME_MS = 33  # about 30 frames per second
+HISCORE_FILE = "dino_hi.txt"  # the high score, kept between games and restarts
+
+
+def load_hiscore():
+    try:
+        with open(HISCORE_FILE) as f:
+            return int(f.read())
+    except (OSError, ValueError):  # no file yet, or it's damaged
+        return 0
+
+
+def save_hiscore(value):
+    try:
+        with open(HISCORE_FILE, "w") as f:
+            f.write(str(value))
+    except OSError:
+        pass
 
 
 class Dino:
@@ -84,7 +101,7 @@ def overlap(ax, ay, aw, ah, bx, by, bw, bh):
     return ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah
 
 
-def play(dino):
+def play(dino, hiscore=0):
     """Plays until the dino crashes or the left pad is touched."""
     obstacles = []  # each: [x, type index]
     speed = START_SPEED
@@ -131,7 +148,7 @@ def play(dino):
             _, ow, oh, lift = OBSTACLES[o[1]]
             oy = GROUND_Y - oh - lift
             if overlap(dx, dy, dw, dh, int(o[0]), oy, ow, oh):
-                draw(dino, obstacles, score, star_offset, ground_offset)
+                draw(dino, obstacles, score, star_offset, ground_offset, hiscore)
                 log(INFO, "jump: crash, score", score // 5)
                 return Result.CRASH, score // 5
 
@@ -142,13 +159,13 @@ def play(dino):
         ground_offset = (ground_offset + int(speed)) % 16
 
         # ---- 6. draw, then hold a steady frame rate
-        draw(dino, obstacles, score, star_offset, ground_offset)
+        draw(dino, obstacles, score, star_offset, ground_offset, hiscore)
         wait = FRAME_MS - time.ticks_diff(time.ticks_ms(), start)
         if wait > 0:
             time.sleep_ms(wait)
 
 
-def draw(dino, obstacles, score, star_offset, ground_offset):
+def draw(dino, obstacles, score, star_offset, ground_offset, hiscore=0):
     oled.fill(0)
     # background: the star tile, repeated across the screen (3 copies cover 128 px)
     x = -int(star_offset)
@@ -169,7 +186,8 @@ def draw(dino, obstacles, score, star_offset, ground_offset):
     else:
         fb = dino.jump_fb
     oled.blit(fb, DINO_X, int(dino.y), 0)
-    # current score top-right
+    # high score top-left (goes up with the score once it's beaten), current score top-right
+    oled.text("HI " + str(max(hiscore, score // 5)), 0, 0)
     s = str(score // 5)
     oled.text(s, OLED_W - len(s) * 8, 0)
     oled.show()
@@ -185,15 +203,22 @@ def run(pet):
     ready_popup = Popup(oled, "Jump", ["exit", "start"], on_select=chosen)
     scroll(ready_popup)
 
+    hiscore = load_hiscore()
     while play_game.value:
         countdown()  # READY, then 3 stars disappearing one by one
-        result, score = play(Dino(*pet.mini()))
+        result, score = play(Dino(*pet.mini()), hiscore)
+        new_hi = score > hiscore
+        if new_hi:
+            log(INFO, "jump: new high score", score)
+            hiscore = score
+            save_hiscore(hiscore)
         if result == Result.EXIT:
             break
         time.sleep_ms(500)
 
         play_game.value = False
-        play_again_popup = Popup(oled, f"SCORE: {score}", ["exit", "play again"], on_select=chosen)
+        text = f"NEW HI! {score}" if new_hi else f"SCORE: {score}\nHI: {hiscore}"
+        play_again_popup = Popup(oled, text, ["exit", "play again"], on_select=chosen)
         scroll(play_again_popup)
 
     oled.fill(0)
