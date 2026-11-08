@@ -25,7 +25,25 @@ from logger import log, INFO
 
 # ORDER MATTERS: the index is what's sent, so only ever ADD messages at the end
 # (keep each under ~13 characters so it fits the menu)
-MESSAGES = ("Hi!", "Miss you", "Play with me?", "Good night", "Thank you!", "<3")
+MESSAGES = (
+    "Hello!",
+    "Good Morning!",
+    "Goodnight!",
+    "Gracias ~",
+    "<3",
+    "Go Kylie go! You're doing amazing sweetie!",
+    "You can do anything :)",
+    "-_-",
+    "How do you crucify 'Cars' jesus?",
+    "Unlucky.",
+    "Unfortunate.",
+    "Do you want ice cream?",
+    "Poopy ~",
+    "BIG BRAIN",
+    "small brain",
+    "no.",
+    "0_0 wow 0_0",
+)
 
 SEND_EVERY_MS = 500  # sender: repeat MSG this often until GOT comes back
 REPLY_MS = 3000  # no GOT in this long = "<ID> is busy"
