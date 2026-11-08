@@ -7,7 +7,7 @@
 #     they chose "yes"                  -> screen blank until the visit is over
 # Host (only while its face is idle in PetMode.run(), the only time its radio is on):
 #   popup "<ID> wants to visit you"  yes / no  (no answer in HOST_ANSWER_MS = no)
-#     yes -> both pets side by side at half size, a short sequence, then back to normal
+#     yes -> both pets side by side at half size: greet, happy, take turns to talk, laugh (host_sequence)
 #
 # Messages (4 bytes, see connect.py): SCAN, HERE, ASK, SEEN, YES, NO, END.
 
@@ -136,11 +136,13 @@ class TwoPets:
         for f in self.faces:
             f.set_auto_blinker(ON, 2, 1)
 
-    def hold(self, ms):
-        """Animate both faces for ms milliseconds."""
+    def hold(self, ms, laughing=False):
+        """Animate both faces for ms milliseconds (laughing=True: both laugh the whole time)."""
         end = time.ticks_add(time.ticks_ms(), ms)
         while time.ticks_diff(end, time.ticks_ms()) > 0:
             for f in self.faces:
+                if laughing:
+                    f.laugh()  # one laugh() lasts 500 ms, so keep it going
                 f.update()
             oled.fill(0)
             oled.blit(self.fbs[0], 0, HALF_Y)
@@ -153,24 +155,35 @@ class TwoPets:
             action(f)
 
 
+# the visit, step by step (ms); both pets start each step at the same moment
+ARRIVE_MS = 1000  # both pets appear (DEFAULT)
+GREET_MS = 1500  # host SURPRISED, visitor LOVE
+HAPPY_MS = 1500  # both HAPPY
+TALK_TURNS = 4  # host, visitor, host, visitor
+TALK_MS = 800  # each turn: one talks, the other listens
+LAUGH_MS = 1500  # both laugh
+BYE_MS = 800  # both back to DEFAULT, then the visit ends
+
+
 def host_sequence(my_name, their_name):
-    """PLACEHOLDER: what the two pets do together on the host's screen.
-    Replace with the real sequence later."""
+    """What the two pets do together on the host's screen
+    (host on the left, visitor on the right; the visitor's own screen stays blank)."""
     pets = TwoPets(my_name, their_name)
-    pets.hold(1200)  # both pets arrive
+    host, guest = pets.faces
+    pets.hold(ARRIVE_MS)
+    host.set_mood(SURPRISED)
+    guest.set_mood(LOVE)
+    pets.hold(GREET_MS)
     pets.both(lambda f: f.set_mood(HAPPY))
-    pets.hold(1500)
-    pets.both(lambda f: f.set_mood(LOVE))
-    pets.hold(1500)
-
-    def laugh(f):
-        f.set_mood(HAPPY)
-        f.laugh()
-
-    pets.both(laugh)
-    pets.hold(1500)
+    pets.hold(HAPPY_MS)
+    for turn in range(TALK_TURNS):  # take turns to talk
+        talker = host if turn % 2 == 0 else guest
+        talker.talk(True)
+        pets.hold(TALK_MS)
+        talker.talk(False)
+    pets.hold(LAUGH_MS, laughing=True)
     pets.both(lambda f: f.set_mood(DEFAULT))
-    pets.hold(800)
+    pets.hold(BYE_MS)
     del pets
 
 
@@ -262,8 +275,8 @@ def ask(mac, my_idx, on_wait):
 
 
 def visitor_sequence(mac):
-    """PLACEHOLDER: what the visitor's keychain does during the visit.
-    For now its screen stays blank until the host says END (or VISIT_MAX_MS)."""
+    """The visitor's keychain during the visit: its screen stays blank (the pets
+    are on the host's screen) until the host says END (or VISIT_MAX_MS)."""
     oled.fill(0)
     oled.show()
     start = time.ticks_ms()
