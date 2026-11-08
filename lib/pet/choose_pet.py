@@ -2,7 +2,7 @@ from utils import btn_handler
 from peripherals import *
 from pet.pet_mode import PetMode
 from roboface.roboface import *
-from bitmaps.eyes import default, basic, bean, halfmoon, visor, pointed, scribble
+from bitmaps.eyes import default, basic, bean, halfmoon, visor, pointed, scribble, sparkle
 from logger import log, log_exception, INFO
 
 eye_options = [
@@ -13,6 +13,7 @@ eye_options = [
     ("visor", visor, CyclopsFace),
     ("pointed", pointed, RoboFace),
     ("scribble", scribble, RoboFace),  # left and right eyes drawn differently
+    ("sparkle", sparkle, RoboFace),
 ]
 
 

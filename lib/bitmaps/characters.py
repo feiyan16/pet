@@ -105,6 +105,20 @@ SCRIBBLE = bytearray(
 SCRIBBLE_W = 18
 SCRIBBLE_H = 8
 
+SPARKLE = bytearray(
+    b"\x10\x02\x00"  # ...#..........#...
+    b"\x10\x02\x00"  # ...#..........#...
+    b"\x38\x07\x00"  # ..###........###..
+    b"\x7c\x0f\x80"  # .#####......#####.
+    b"\xfe\x1f\xc0"  # #######....#######
+    b"\x7c\x0f\x80"  # .#####......#####.
+    b"\x39\x27\x00"  # ..###..#..#..###..
+    b"\x10\xc2\x00"  # ...#....##....#...
+    b"\x10\x02\x00"  # ...#..........#...
+)
+SPARKLE_W = 18
+SPARKLE_H = 9
+
 
 # all characters, in menu order: name -> (bytearray, width, height)
 CHARACTERS = {
@@ -115,7 +129,8 @@ CHARACTERS = {
     "visor": (VISOR, VISOR_W, VISOR_H),
     "pointed": (POINTED, POINTED_W, POINTED_H),
     "scribble": (SCRIBBLE, SCRIBBLE_W, SCRIBBLE_H),
+    "sparkle": (SPARKLE, SPARKLE_W, SPARKLE_H),
 }
 # ORDER MATTERS: 2-player games send the index into NAMES, so only ever ADD names
 # at the end. A keychain with an older list shows an unknown index as 'oblong'.
-NAMES = ("bean", "oval", "oblong", "halfmoon", "visor", "pointed", "scribble")
+NAMES = ("bean", "oval", "oblong", "halfmoon", "visor", "pointed", "scribble", "sparkle")
