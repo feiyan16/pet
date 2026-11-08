@@ -1,7 +1,8 @@
 # ---- sending a message to another keychain (used by pet/pet_mode.py)
 #
 # Sender (picks "Message" in the pet menu):
-#   search -> list of keychains found (pet + ID) -> pick one -> pick a message
+#   pick a message -> search -> list of keychains found (pet + ID) -> pick one
+#   (back / nobody found / LEFT during the search -> the message list again)
 #   -> envelope glides across with a shooting-star trail, "sending"
 #     receiver said GOT     -> "sent!" for SENT_MS
 #     no GOT in REPLY_MS    -> popup "<ID> is busy"
@@ -187,20 +188,24 @@ def deliver(mac, index):
 
 def send(pet_mode):
     """The "Message" menu item."""
-    mac = visit.find_friend()
-    if mac is not None:
+    while True:
         index = pick_message()
-        if index is not None:
-            who = short_id(mac)
-            if deliver(mac, index):
-                log(INFO, "message sent to", who)
-                oled.fill(0)
-                centred("sent!", (OLED_H - 8) // 2)
-                oled.show()
-                time.sleep_ms(SENT_MS)
-            else:
-                log(INFO, "message: no reply from", who)
-                visit.note(who + " is busy")
+        if index is None:  # "back" (or the menu timed out): back to the face
+            break
+        mac = visit.find_friend()
+        if mac is None:  # "back", nobody found or search cancelled: choose a message again
+            continue
+        who = short_id(mac)
+        if deliver(mac, index):
+            log(INFO, "message sent to", who)
+            oled.fill(0)
+            centred("sent!", (OLED_H - 8) // 2)
+            oled.show()
+            time.sleep_ms(SENT_MS)
+        else:
+            log(INFO, "message: no reply from", who)
+            visit.note(who + " is busy")
+        break
     oled.fill(0)
     oled.show()
     drain()
