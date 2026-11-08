@@ -19,7 +19,7 @@ from logger import log, log_exception, DEBUG, INFO, WARN
 IDLE_SLEEP_MS = 45000  # no touch for this long in pet mode = get sleepy, then deep sleep
 PAT_TOO_FAST_MS = 250  # two pats closer together than this count as "too fast"...
 PAT_TOO_FAST_TAPS = 5  # ...and this many too-fast pats in a row make the pet angry
-PAT_LOVE_MIN, PAT_LOVE_MAX = 5, 30  # pats needed for LOVE: picked at random in this range
+PAT_LOVE_MIN, PAT_LOVE_MAX = (5, 30)  # pats needed for LOVE: picked at random in this range
 PAT_SPOTS = (N, NE, E, SE, S, SW, W, NW)  # where a pat can move the face (never the same twice)
 LOVE_SHOW_MS = 2000  # how long the heart eyes stay
 LOVE_BACK_MS = 600  # hearts turning back into happy eyes, before the laugh
@@ -364,7 +364,7 @@ class PetMode:
 
     def _deep_sleep(self):
         """Screen off, then deep sleep until either pad is touched. Waking restarts the
-        board: main.py runs again and the pet does its wake-up animation."""
+        board: app.py runs again and the pet does its wake-up animation."""
         radio_off()  # in case a 2-player game left it on
         wait_release()  # a pad held now would wake it at once
         if hasattr(esp32, "wake_on_gpio"):  # MicroPython versions with GPIO deep-sleep wake
@@ -376,7 +376,7 @@ class PetMode:
         log(WARN, "no esp32.wake_on_gpio in this firmware: light-sleep fallback")
         while not (left_btn.value() or right_btn.value()):
             machine.lightsleep(200)
-        machine.reset()  # restart through main.py, as deep sleep would
+        machine.reset()  # restart through app.py, as deep sleep would
 
     # ------------------------------------------------------------- idle moods
     def _next_mood_at(self):
