@@ -18,9 +18,23 @@ from logger import log, log_exception, INFO, WARN, log_boot
 
 cause = log_boot()
 
+LINE_1, LINE_2 = "Rosemary!", "Hello!"
+LETTER_MS = 350  # one letter every 350 ms, as now
+_type_1 = loading_screen.typed(LINE_1, LETTER_MS)
+_type_2 = loading_screen.typed(LINE_2, LETTER_MS)
+_LINE_1_MS = len(LINE_1) * LETTER_MS
 
-HELLO_TEXT = "hello!"
-TYPED_HELLO = loading_screen.typed("hello!", 350)  # typed during the star intro, 1 letter / 350 ms,
+def _typed_two_lines(elapsed_ms):
+    if elapsed_ms < _LINE_1_MS:    # Line 1 is still typing
+        second = " " * len(LINE_2)         # Line 2 is just waiting typing spaces
+    else
+        second = TYPED_ROSEMARY(elapsed_ms - _LINE_1_MS)
+    return ((_type_1(elapsed_ms), 23), (second, 33))
+        
+
+
+HELLO_TEXT = [((LINE_1, 23), (LINE_2, 33))]
+TYPED_HELLO = _typed_two_lines  # typed during the star intro, 1 letter / 350 ms
 HELLO_PAUSE_MS = 3000  # then the whole word stays up, stars twinkling, before loading
 # Same width (trailing space) so the centred text doesn't shift as the dots change
 LOADING_TEXT = ("loading. ", "loading..")
