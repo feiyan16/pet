@@ -54,6 +54,46 @@ def typed(text, letter_ms):
     return step
 
 
+class Pictures:
+    """Bitmaps drawn side by side, centred as a group, e.g. Chinese characters
+    (oled.text() can't draw them). Use it as text, or as a step / line of text;
+    it's centred on the text row. parts: ((buf, w, h), ...) MONO_HLSB.
+    upto(n): the same pictures with only the first n drawn; the others keep
+    their space, so nothing moves as more appear."""
+
+    def __init__(self, parts, gap=2, shown=None, _fbs=None):
+        self.parts = parts
+        self.gap = gap
+        self.shown = len(parts) if shown is None else shown
+        self.fbs = _fbs or [framebuf.FrameBuffer(b, w, h, framebuf.MONO_HLSB) for b, w, h in parts]
+        self.w = sum(w for _, w, _ in parts) + gap * (len(parts) - 1)
+        self.h = max(h for _, _, h in parts)
+        self._upto = None
+
+    def upto(self, n):
+        if self._upto is None:  # made once, so the same n gives the same object (no redraws)
+            self._upto = [Pictures(self.parts, self.gap, k, self.fbs) for k in range(len(self.parts) + 1)]
+        return self._upto[max(0, min(n, len(self.parts)))]
+
+    def draw(self, text_y):
+        x = (OLED_W - self.w) // 2
+        y = text_y + 4 - self.h // 2  # centred on the 8 px text row
+        for i, (fb, (_, w, h)) in enumerate(zip(self.fbs, self.parts)):
+            if i < self.shown:
+                oled.blit(fb, x, y + (self.h - h) // 2, 0)
+            x += w + self.gap
+
+
+def typed_pictures(pictures, step_ms):
+    """Like typed(), for Pictures: nothing at first, then one more picture
+    every step_ms (use as text or intro_text)."""
+
+    def step(elapsed_ms):
+        return pictures.upto(elapsed_ms // step_ms)
+
+    return step
+
+
 class Animation:
     """The star frames and text. Call tick() often; it never blocks, so your own
     code (imports, radio...) keeps running. With intro=True it starts with the
@@ -81,13 +121,13 @@ class Animation:
         self.draw()
 
     def set_text(self, text):
-        """text: None | "a string" | a list/tuple of steps | a function(elapsed_ms).
-        A step is "text" (drawn at text_y), ("text", y), or several lines:
+        """text: None | "a string" | Pictures | a list/tuple of steps | a function(elapsed_ms).
+        A step is "text" or Pictures (drawn at text_y), ("text", y), or several lines:
         (("line 1", y1), ("line 2", y2))."""
         self.text = text
         self.text_step = 0
         self.text_start = self.last_text = time.ticks_ms()
-        self.text_moves = text is not None and not isinstance(text, str)
+        self.text_moves = text is not None and not isinstance(text, (str, Pictures))
 
     def load(self, index):
         if self.file is not None:
@@ -151,7 +191,7 @@ class Animation:
         t = self.text
         if t is None:
             return None
-        if isinstance(t, str):
+        if isinstance(t, (str, Pictures)):
             step = t
         elif callable(t):
             step = t(time.ticks_diff(time.ticks_ms(), self.text_start))
@@ -159,9 +199,9 @@ class Animation:
             step = t[self.text_step % len(t)]  # cycle through the steps
         if step is None:
             return None
-        if isinstance(step, str):
+        if isinstance(step, (str, Pictures)):
             return ((step, self.text_y),)
-        if isinstance(step[0], str):
+        if isinstance(step[0], (str, Pictures)):
             return ((step[0], step[1]),)  # one ("text", y)
         return step  # several (("text", y), ...) lines
 
@@ -172,7 +212,10 @@ class Animation:
         step = self._text_now()
         if step is not None:
             for text, y in step:
-                centred(text, y)  # text on top of the stars
+                if isinstance(text, Pictures):
+                    text.draw(y)  # bitmaps (e.g. Chinese characters) on top of the stars
+                else:
+                    centred(text, y)  # text on top of the stars
         self.drawn = step
         oled.show()
 

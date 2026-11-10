@@ -19,8 +19,13 @@ from logger import log, log_exception, INFO, WARN, log_boot
 cause = log_boot()
 
 
-HELLO_TEXT = "hello!"
-TYPED_HELLO = loading_screen.typed("hello!", 350)  # typed during the star intro, 1 letter / 350 ms,
+from bitmaps import mama
+
+# "妈妈!" as bitmaps (oled.text() can't draw Chinese): 妈, 妈, then a tall "!"
+_MA = (mama.MA, mama.MA_W, mama.MA_H)
+HELLO_TEXT = loading_screen.Pictures((_MA, _MA, (mama.BANG, mama.BANG_W, mama.BANG_H)))
+# during the star intro: nothing, then 妈, 妈妈, 妈妈!, one step every 700 ms,
+TYPED_HELLO = loading_screen.typed_pictures(HELLO_TEXT, 700)
 HELLO_PAUSE_MS = 3000  # then the whole word stays up, stars twinkling, before loading
 # Same width (trailing space) so the centred text doesn't shift as the dots change
 LOADING_TEXT = ("loading. ", "loading..")
@@ -71,7 +76,7 @@ def face_from_json(text):
 # LOADING SCREEN FOR THE FIRST START (no pet yet)
 #
 # HOW IT WORKS
-#   loading_screen.run(first_start_loading, ...) plays the "hello!" star intro, a
+#   loading_screen.run(first_start_loading, ...) plays the "妈妈!" star intro, a
 #   pause, then the "loading.." text while first_start_loading runs.
 #   first_start_loading is a GENERATOR: each `yield` hands control back to the
 #   loading screen so the stars and dots can move on. During an import itself
@@ -157,7 +162,7 @@ gc.collect()
 
 if pet_face is None:
     oled.poweron()  # in case deep sleep left it off
-    # 1. "hello!" typed over the star intro, a 3 s pause, then load everything behind the stars
+    # 1. "妈妈!" typed over the star intro, a 3 s pause, then load everything behind the stars
     #    (see the notes above). on_error="raise": a failed import shows
     #    "loading failed", prints the traceback, and stops here instead of
     #    carrying on half-loaded.
