@@ -24,18 +24,20 @@ _type_1 = loading_screen.typed(LINE_1, LETTER_MS)
 _type_2 = loading_screen.typed(LINE_2, LETTER_MS)
 _LINE_1_MS = len(LINE_1) * LETTER_MS
 
+
 def _typed_two_lines(elapsed_ms):
-    if elapsed_ms < _LINE_1_MS:    # Line 1 is still typing
-        second = " " * len(LINE_2)         # Line 2 is just waiting typing spaces
-    else
-        second = TYPED_ROSEMARY(elapsed_ms - _LINE_1_MS)
+    if elapsed_ms < _LINE_1_MS:  # Line 1 is still typing
+        second = " " * len(LINE_2)  # Line 2 is just waiting typing spaces
+    else:
+        second = _type_2(elapsed_ms - _LINE_1_MS)
     return ((_type_1(elapsed_ms), 23), (second, 33))
-        
 
 
 HELLO_TEXT = [((LINE_1, 23), (LINE_2, 33))]
 TYPED_HELLO = _typed_two_lines  # typed during the star intro, 1 letter / 350 ms
-HELLO_PAUSE_MS = 3000  # then the whole word stays up, stars twinkling, before loading
+TYPING_MS = _LINE_1_MS + (len(LINE_2) - 1) * LETTER_MS  # when the last letter of line 2 appears
+INTRO_MS = sum(loading_screen.INTRO_MS)  # the pause only starts after the star intro (~2.1 s)
+HELLO_PAUSE_MS = max(0, TYPING_MS - INTRO_MS) + 3000  # 3 s of twinkling after the last letter
 # Same width (trailing space) so the centred text doesn't shift as the dots change
 LOADING_TEXT = ("loading. ", "loading..")
 
