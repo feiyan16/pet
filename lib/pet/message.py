@@ -11,13 +11,13 @@
 #
 # Messages (4 bytes, see connect.py): MSG (value = index into MESSAGES), GOT.
 
-import time
-import random
-import framebuf
+import time  # ticks_ms, sleep_ms
+import random  # where each sparkle starts and how long it lasts
+import framebuf  # FrameBuffers for the envelope and stars
 
 from peripherals import oled, OLED_W, OLED_H, left_btn, right_btn
 from connect import e, parse, pack, safe_send, add_peer, drain, short_id, MSG, GOT
-from bitmaps import mail, stars
+from bitmaps import mail, stars  # the envelope, and the 5 x 5 / 3 x 3 stars for the trail
 from ui.menu import Menu
 from ui.popup import Popup
 from utils import scroll, Choice, centred, wait_release
@@ -64,7 +64,7 @@ SPARK_BEHIND = (4, 12)  # new sparkles start this many px behind the envelope
 SPARK_SPREAD = (-6, 5)  # ...and this many px above / below its middle
 SPARK_LIFE = (10, 18)  # frames a sparkle lasts
 SPARK_DRIFT = 2  # px a sparkle drifts back each frame (stretches the tail)
-TEXT_Y = 52
+TEXT_Y = 52  # row of "sending" under the envelope
 
 _env = framebuf.FrameBuffer(mail.ENVELOPE, mail.ENVELOPE_W, mail.ENVELOPE_H, framebuf.MONO_HLSB)
 _star5 = framebuf.FrameBuffer(stars.STAR_5, stars.STAR_5_W, stars.STAR_5_H, framebuf.MONO_HLSB)
@@ -73,7 +73,7 @@ _star3 = framebuf.FrameBuffer(stars.STAR_3, stars.STAR_3_W, stars.STAR_3_H, fram
 
 def _spark(age, life, x, y):
     """New sparkles are 5 x 5 stars, then 3 x 3, then a single dot: the tail tapers."""
-    f = age * 100 // life
+    f = age * 100 // life  # how far through its life, in % (whole numbers: no floats)
     if f < 35:
         oled.blit(_star5, x - 2, y - 2, 0)
     elif f < 70:
@@ -86,13 +86,13 @@ def fly(text=None, stop_x=None, on_frame=None):
     """The envelope glides in from the left with a shooting-star trail.
     stop_x=None: it carries on off the right edge.  stop_x=n: it stops with its
     left edge at x=n.  text: shown under it.  on_frame(): called once per frame."""
-    w, h = mail.ENVELOPE_W, mail.ENVELOPE_H
+    w, h = mail.ENVELOPE_W, mail.ENVELOPE_H  # envelope size
     end = OLED_W + 30 if stop_x is None else stop_x  # +30: let the tail leave the screen too
     sparks = []  # [x, y, age, life]
-    x, frame = -w, 0
+    x, frame = -w, 0  # start just off the left edge
     while x < end or sparks:
-        start = time.ticks_ms()
-        if x < min(end, OLED_W):
+        start = time.ticks_ms()  # for the steady frame rate
+        if x < min(end, OLED_W):  # still flying: add new sparkles behind it
             for _ in range(2 if frame % SPARKS_EVERY == 0 else 1):
                 sparks.append(
                     [
@@ -104,22 +104,22 @@ def fly(text=None, stop_x=None, on_frame=None):
                 )
         oled.fill(0)
         for s in sparks:
-            _spark(s[2], s[3], s[0], s[1])
+            _spark(s[2], s[3], s[0], s[1])  # age, life, x, y
         if x < OLED_W:
             oled.blit(_env, x, ENV_Y - h // 2, 0)
         if text:
             centred(text, TEXT_Y)
         oled.show()
         for s in sparks:
-            s[2] += 1
+            s[2] += 1  # one frame older
             s[0] -= SPARK_DRIFT
-        sparks = [s for s in sparks if s[2] < s[3]]
+        sparks = [s for s in sparks if s[2] < s[3]]  # drop the ones whose life is over
         if x < end:
-            x = min(end, x + SPEED)
+            x = min(end, x + SPEED)  # move on, but not past end
         frame += 1
         if on_frame is not None:
-            on_frame()
-        wait = FRAME_MS - time.ticks_diff(time.ticks_ms(), start)
+            on_frame()  # e.g. deliver() checks the radio here
+        wait = FRAME_MS - time.ticks_diff(time.ticks_ms(), start)  # time left in this frame
         if wait > 0:
             time.sleep_ms(wait)
     if stop_x is not None:  # rest in the middle, trail gone
@@ -134,9 +134,9 @@ def receive(mac, index):
     for _ in range(3):
         safe_send(mac, pack(GOT))  # straight away, so the sender knows it arrived
     who = short_id(mac)
-    text = MESSAGES[index] if index < len(MESSAGES) else "?"
+    text = MESSAGES[index] if index < len(MESSAGES) else "?"  # "?" if the sender's list is newer than ours
     log(INFO, "message from", who, ":", text)
-    fly(stop_x=(OLED_W - mail.ENVELOPE_W) // 2)
+    fly(stop_x=(OLED_W - mail.ENVELOPE_W) // 2)  # glide in and stop in the middle
     time.sleep_ms(ARRIVED_MS)
     Popup(oled, who + ":\n" + text, []).display()  # no button: it stays until a pad is tapped
     wait_release()  # a finger already down doesn't count
@@ -151,11 +151,11 @@ def receive(mac, index):
 # ============================================================== sender side
 def pick_message():
     """Menu of MESSAGES + "back". Returns an index, or None."""
-    chosen = Choice(None)
+    chosen = Choice(None)  # the message's number, set when one is chosen
 
     def on_select(_, index, __):
         if index < len(MESSAGES):
-            chosen.value = index
+            chosen.value = index  # "back" (past the messages) leaves it None
 
     scroll(Menu(oled, OLED_W, OLED_H, list(MESSAGES) + ["back"], on_select=on_select))
     wait_release()
@@ -164,48 +164,48 @@ def pick_message():
 
 def deliver(mac, index):
     """Send MESSAGES[index] to mac while the envelope flies. True once they said GOT."""
-    add_peer(mac)
-    drain()
+    add_peer(mac)  # so we can send to them directly
+    drain()  # old messages aren't answers to this one
     start = time.ticks_ms()
-    state = {"got": False, "last": None}
+    state = {"got": False, "last": None}  # a dict, so poll() can change these (like Choice)
 
     def poll():
         now = time.ticks_ms()
         if not state["got"] and (state["last"] is None or time.ticks_diff(now, state["last"]) >= SEND_EVERY_MS):
-            safe_send(mac, pack(MSG, index))
+            safe_send(mac, pack(MSG, index))  # the message's number, not its text
             state["last"] = now
         while e.any():
-            sender, msg = e.recv(0)
+            sender, msg = e.recv(0)  # 0 = don't wait
             if sender == mac and parse(msg)[0] == GOT:
                 state["got"] = True
 
-    fly(text="sending", on_frame=poll)
+    fly(text="sending", on_frame=poll)  # the envelope flies while poll() sends and listens
     while not state["got"] and time.ticks_diff(time.ticks_ms(), start) < REPLY_MS:
         poll()  # the flight was shorter than REPLY_MS: keep waiting a little
         time.sleep_ms(20)
-    return state["got"]
+    return state["got"]  # True = they confirmed it
 
 
 def send(pet_mode):
     """The "Message" menu item."""
     while True:
-        index = pick_message()
+        index = pick_message()  # 1. which message
         if index is None:  # "back" (or the menu timed out): back to the face
             break
-        mac = visit.find_friend()
+        mac = visit.find_friend()  # 2. who to send it to
         if mac is None:  # "back", nobody found or search cancelled: choose a message again
             continue
         who = short_id(mac)
         if deliver(mac, index):
             log(INFO, "message sent to", who)
             oled.fill(0)
-            centred("sent!", (OLED_H - 8) // 2)
+            centred("sent!", (OLED_H - 8) // 2)  # in the middle of the screen
             oled.show()
             time.sleep_ms(SENT_MS)
         else:
             log(INFO, "message: no reply from", who)
             visit.note(who + " is busy")
-        break
+        break  # done (sent or busy)
     oled.fill(0)
     oled.show()
-    drain()
+    drain()  # their repeated GOTs

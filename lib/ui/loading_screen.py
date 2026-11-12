@@ -26,8 +26,8 @@
 #   while not done: ...; anim.tick()     # call often: the stars and text move on
 #   anim.close()
 
-import time
-import framebuf
+import time  # ticks_ms, sleep_ms
+import framebuf  # FrameBuffer: lets the frame bytes be blit()-ed onto the screen
 
 from peripherals import oled, OLED_W, OLED_H
 from utils import centred
@@ -37,7 +37,7 @@ FRAMES_FILE = "/lib/bitmaps/loading_frames.bin"  # in the board's /lib/bitmaps f
 FRAME_BYTES = OLED_W * OLED_H // 8  # 1024 bytes per 128 x 64 frame
 INTRO_MS = (700, 550, 400, 280, 200)  # frames 0-4: each one shorter = stars appear slow to fast
 LOOP_FIRST = 5  # frames 5-6: alternated
-LOOP_FRAMES = 2
+LOOP_FRAMES = 2  # how many loop frames there are
 FRAME_MS = 300  # how long each loop frame stays up
 TEXT_MS = 400  # how long each text step stays up
 TEXT_Y = 28  # middle row: the stars leave the middle empty
@@ -48,8 +48,8 @@ def typed(text, letter_ms):
     intro_text). Padded with spaces so the centred text doesn't move as it grows."""
 
     def step(elapsed_ms):
-        n = min(len(text), 1 + elapsed_ms // letter_ms)
-        return text[:n] + " " * (len(text) - n)
+        n = min(len(text), 1 + elapsed_ms // letter_ms)  # letters shown so far (at least 1)
+        return text[:n] + " " * (len(text) - n)  # pad to the full length so it doesn't move
 
     return step
 
@@ -60,41 +60,44 @@ class Animation:
     stars appearing (frames 0-4, slow to fast), then loops frames 5-6."""
 
     def __init__(self, text=None, text_y=TEXT_Y, text_ms=TEXT_MS, intro=True):
-        self.text_y = text_y
-        self.text_ms = text_ms
+        self.text_y = text_y  # default text row
+        self.text_ms = text_ms  # how long each text step stays up
         self.buf = bytearray(FRAME_BYTES)  # the one frame in RAM
-        self.fb = framebuf.FrameBuffer(self.buf, OLED_W, OLED_H, framebuf.MONO_HLSB)
+        self.fb = framebuf.FrameBuffer(self.buf, OLED_W, OLED_H, framebuf.MONO_HLSB)  # view of buf for blit()
         try:
-            self.file = open(FRAMES_FILE, "rb")
+            self.file = open(FRAMES_FILE, "rb")  # "rb" = read raw bytes; kept open while the animation runs
         except OSError:
             log(WARN, "loading_screen:", FRAMES_FILE, "not found, text only")
             self.file = None  # no stars, text still works
-        self.loop_i = 0
+        self.loop_i = 0  # which loop frame (0 or 1) is showing
         self.intro_i = None  # intro frame showing, None = looping
-        self.last_frame = time.ticks_ms()
+        self.last_frame = time.ticks_ms()  # when the current star frame went up
         self.drawn = None  # the text step last drawn
         self.set_text(text)
         if intro:
             self.start_intro()
         else:
-            self.load(LOOP_FIRST)
-        self.draw()
+            self.load(LOOP_FIRST)  # straight to the loop
+        self.draw()  # first picture on the screen now
 
     def set_text(self, text):
         """text: None | "a string" | a list/tuple of steps | a function(elapsed_ms).
         A step is "text" (drawn at text_y), ("text", y), or several lines:
         (("line 1", y1), ("line 2", y2))."""
         self.text = text
-        self.text_step = 0
-        self.text_start = self.last_text = time.ticks_ms()
+        self.text_step = 0  # which step of a list/tuple is showing
+        self.text_start = self.last_text = time.ticks_ms()  # for functions (elapsed) and lists (step timing)
+        # a list/tuple of steps changes on its own every text_ms; one fixed string doesn't
         self.text_moves = text is not None and not isinstance(text, str)
 
     def load(self, index):
+        """Read star frame number index from the file into buf (the 1 KB in RAM)."""
         if self.file is not None:
-            self.file.seek(index * FRAME_BYTES)
+            self.file.seek(index * FRAME_BYTES)  # jump to where that frame starts in the file
             self.file.readinto(self.buf)  # overwrite the 1 KB buffer
 
     def start_intro(self):
+        """Start the intro again from frame 0."""
         self.intro_i = 0
         self.load(0)
         self.last_frame = time.ticks_ms()
@@ -108,6 +111,7 @@ class Animation:
             time.sleep_ms(10)
 
     def _next_frame(self):
+        """Load the star frame that comes after the current one."""
         if self.intro_i is not None:  # intro: frames 0-4 once
             self.intro_i += 1
             if self.intro_i < len(INTRO_MS):
@@ -124,14 +128,14 @@ class Animation:
         """Advance the stars and/or the text when their time is up, then redraw.
         Cheap to call often: it does nothing until something is due."""
         now = time.ticks_ms()
-        frame_ms = INTRO_MS[self.intro_i] if self.intro_i is not None else FRAME_MS
-        frame_due = time.ticks_diff(now, self.last_frame) >= frame_ms
+        frame_ms = INTRO_MS[self.intro_i] if self.intro_i is not None else FRAME_MS  # this frame's time
+        frame_due = time.ticks_diff(now, self.last_frame) >= frame_ms  # time for the next star frame?
         if callable(self.text):  # e.g. typed(): redraw when it changes
             text_due = self._text_now() != self.drawn
         else:
             text_due = self.text_moves and time.ticks_diff(now, self.last_text) >= self.text_ms
         if not (frame_due or text_due):
-            return
+            return  # nothing changed: don't redraw (a redraw takes ~25 ms)
         if frame_due:
             self.last_frame = now
             self._next_frame()
@@ -148,13 +152,14 @@ class Animation:
             time.sleep_ms(10)
 
     def _text_now(self):
+        """The text to draw right now, always as lines: (("text", y), ...), or None."""
         t = self.text
         if t is None:
             return None
         if isinstance(t, str):
             step = t
         elif callable(t):
-            step = t(time.ticks_diff(time.ticks_ms(), self.text_start))
+            step = t(time.ticks_diff(time.ticks_ms(), self.text_start))  # ask the function, with ms elapsed
         else:
             step = t[self.text_step % len(t)]  # cycle through the steps
         if step is None:
@@ -166,17 +171,19 @@ class Animation:
         return step  # several (("text", y), ...) lines
 
     def draw(self):
+        """Draw the current star frame and text, and show them."""
         oled.fill(0)
         if self.file is not None:
-            oled.blit(self.fb, 0, 0)
+            oled.blit(self.fb, 0, 0)  # the star frame fills the screen
         step = self._text_now()
         if step is not None:
             for text, y in step:
                 centred(text, y)  # text on top of the stars
-        self.drawn = step
+        self.drawn = step  # remembered, so tick() can tell when the text changes
         oled.show()
 
     def close(self):
+        """Close the frames file (always call this when the animation is done)."""
         if self.file is not None:
             self.file.close()
             self.file = None
@@ -209,16 +216,16 @@ def run(
     def loading_fn_wrapper():
         """Run loading_fn and catch any error in it. Returns (ok, result_or_error)."""
         try:
-            result = loading_fn()
+            result = loading_fn()  # a normal function runs here; a generator only starts
             if hasattr(result, "send"):  # a generator function was given:
                 for _ in result:  #   run it step by step,
                     screen.tick()  #   moving the animation between steps
-                result = None
+                result = None  # generators don't return a value
             return True, result
         except Exception as err:  # any error inside loading_fn lands here
             return False, err
 
-    ok, value = True, None
+    ok, value = True, None  # stays (True, None) if there's no loading_fn
     try:
         # 1. intro, always played in full (nothing is loading yet, so it can't stall)
         while screen.intro_i is not None:
@@ -229,12 +236,12 @@ def run(
             screen.hold(pause_ms)
         # 3. loading
         if loading_fn is not None or min_ms:
-            screen.set_text(text)
+            screen.set_text(text)  # switch to the loading text
             screen.draw()
             start = time.ticks_ms()
             if loading_fn is not None:
                 ok, value = loading_fn_wrapper()
-            left = min_ms - time.ticks_diff(time.ticks_ms(), start)
+            left = min_ms - time.ticks_diff(time.ticks_ms(), start)  # ms still to show, if min_ms isn't up
             if left > 0:
                 screen.hold(left)
     finally:
@@ -245,13 +252,13 @@ def run(
         centred("loading failed", 28)
         oled.show()
         log_exception(value, "loading failed")  # full traceback to the console and log
-        time.sleep_ms(2000)
+        time.sleep_ms(2000)  # long enough to read it
         oled.fill(0)
         oled.show()
         if on_error == "raise":
             raise value
         return None
 
-    oled.fill(0)
+    oled.fill(0)  # clear the screen for whatever comes next
     oled.show()
     return value
