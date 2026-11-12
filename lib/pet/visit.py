@@ -11,14 +11,14 @@
 #
 # Messages (4 bytes, see connect.py): SCAN, HERE, ASK, SEEN, YES, NO, END.
 
-import time
-import framebuf
+import time  # ticks_ms, sleep_ms
+import framebuf  # FrameBuffers for the half-size faces
 
 from peripherals import oled, OLED_W, OLED_H, left_btn
-from roboface.roboface import *
+from roboface.roboface import *  # moods (HAPPY...), ON / OFF
 from connect import e, parse, pack, safe_send, add_peer, radio_on, drain, short_id, my_id, BCAST
 from connect import SCAN, HERE, ASK, SEEN, YES, NO, END, MSG
-from bitmaps import characters
+from bitmaps import characters  # NAMES: pet index <-> pet name
 from ui.popup import Popup
 from ui import loading_screen
 from utils import scroll, Choice, wait_release
@@ -40,6 +40,7 @@ HALF_Y = (OLED_H - HALF_H) // 2  # both halves sit in the middle rows
 
 
 def _send_n(mac, kind, value=0):
+    """Send the same message REPEAT times (radio messages can get lost)."""
     for _ in range(REPEAT):
         safe_send(mac, pack(kind, value))
 
@@ -50,23 +51,23 @@ def listen(name_idx):
     Returns (kind, mac, value) when someone ASKs to visit (value = their pet index)
     or sends a MSG (value = message index, see pet/message.py), else None. Never blocks."""
     while e.any():
-        mac, msg = e.recv(0)
+        mac, msg = e.recv(0)  # 0 = don't wait
         kind, value = parse(msg)
         if kind == SCAN:
-            add_peer(mac)
-            safe_send(mac, pack(HERE, name_idx))
+            add_peer(mac)  # so we can answer them directly
+            safe_send(mac, pack(HERE, name_idx))  # "I'm here", with our pet's number
         elif kind == ASK or kind == MSG:
             add_peer(mac)
             return kind, mac, value
-    return None
+    return None  # nothing for us
 
 
 def host(pet_mode, mac, their_idx):
     """Someone asked to visit: ask our person, then (if yes) play the visit."""
-    who = short_id(mac)
+    who = short_id(mac)  # e.g. "4F:2A:91"
     log(INFO, "visit request from", who)
     _send_n(mac, SEEN)  # "I heard you, asking my person now"
-    answer = Choice(False)
+    answer = Choice(False)  # True if "yes" is chosen; stays False on "no" or timeout
 
     def chosen(_, index, __):
         answer.value = index == 0  # ["yes", "no"]
@@ -77,7 +78,7 @@ def host(pet_mode, mac, their_idx):
     if not answer.value or their_idx >= len(characters.NAMES):
         log(INFO, "visit declined")
         _send_n(mac, NO)
-        drain()
+        drain()  # their repeated ASKs
         return
     log(INFO, "visit accepted")
     _send_n(mac, YES)
@@ -93,10 +94,12 @@ def host(pet_mode, mac, their_idx):
 # ---- half-size pets
 def _half(eye, w, h):
     """The eye bitmap at half size (a pixel is on if any of its 4 source pixels is)."""
-    src = framebuf.FrameBuffer(bytearray(eye), w, h, framebuf.MONO_HLSB)
-    nw, nh = w // 2, h // 2
-    out = bytearray(((nw + 7) // 8) * nh)
-    dst = framebuf.FrameBuffer(out, nw, nh, framebuf.MONO_HLSB)
+    src = framebuf.FrameBuffer(
+        bytearray(eye), w, h, framebuf.MONO_HLSB
+    )  # the full-size eye (copied: bytes can't be a FrameBuffer)
+    nw, nh = w // 2, h // 2  # half the width and height
+    out = bytearray(((nw + 7) // 8) * nh)  # the half-size bitmap's bytes
+    dst = framebuf.FrameBuffer(out, nw, nh, framebuf.MONO_HLSB)  # so we can set its pixels
     for y in range(nh):
         for x in range(nw):
             if (
@@ -113,13 +116,13 @@ def _half_face(name, fb):
     """A half-size face of pet `name`, drawn into fb (64 x 32)."""
     from pet.choose_pet import eye_options  # imported here: choose_pet imports pet_mode
 
-    opt = eye_options[0]
+    opt = eye_options[0]  # unknown name: fall back to the first pet
     for o in eye_options:
         if o[0] == name:
             opt = o
             break
-    pet_name, eyes, cls = opt
-    eye, w, h = _half(eyes.EYE, eyes.EYE_W, eyes.EYE_H)
+    pet_name, eyes, cls = opt  # name, eye bitmap module, face class
+    eye, w, h = _half(eyes.EYE, eyes.EYE_W, eyes.EYE_H)  # half-size eye
     right = getattr(eyes, "RIGHT_EYE", None)  # only scribble has one
     if right is not None:
         right = _half(right, eyes.EYE_W, eyes.EYE_H)[0]
@@ -130,27 +133,33 @@ class TwoPets:
     """Our pet on the left, the visitor on the right, each 64 x 32."""
 
     def __init__(self, left_name, right_name):
-        self.bufs = [bytearray(HALF_W * HALF_H // 8) for _ in range(2)]
-        self.fbs = [framebuf.FrameBuffer(b, HALF_W, HALF_H, framebuf.MONO_VLSB) for b in self.bufs]
-        self.faces = [_half_face(left_name, self.fbs[0]), _half_face(right_name, self.fbs[1])]
+        self.bufs = [bytearray(HALF_W * HALF_H // 8) for _ in range(2)]  # one 64 x 32 picture per pet (256 bytes each)
+        self.fbs = [
+            framebuf.FrameBuffer(b, HALF_W, HALF_H, framebuf.MONO_VLSB) for b in self.bufs
+        ]  # MONO_VLSB: same layout as the OLED, so blit is a plain copy
+        self.faces = [
+            _half_face(left_name, self.fbs[0]),
+            _half_face(right_name, self.fbs[1]),
+        ]  # each face draws into its own picture
         for f in self.faces:
-            f.set_auto_blinker(ON, 2, 1)
+            f.set_auto_blinker(ON, 2, 1)  # blink every 2 s + a random 0-1 s
 
     def hold(self, ms, laughing=False):
         """Animate both faces for ms milliseconds (laughing=True: both laugh the whole time)."""
-        end = time.ticks_add(time.ticks_ms(), ms)
+        end = time.ticks_add(time.ticks_ms(), ms)  # when to stop
         while time.ticks_diff(end, time.ticks_ms()) > 0:
             for f in self.faces:
                 if laughing:
                     f.laugh()  # one laugh() lasts 500 ms, so keep it going
-                f.update()
+                f.update()  # draws into its own 64 x 32 picture
             oled.fill(0)
-            oled.blit(self.fbs[0], 0, HALF_Y)
-            oled.blit(self.fbs[1], HALF_W, HALF_Y)
+            oled.blit(self.fbs[0], 0, HALF_Y)  # left pet
+            oled.blit(self.fbs[1], HALF_W, HALF_Y)  # right pet
             oled.show()
-            time.sleep_ms(20)
+            time.sleep_ms(20)  # about 50 redraws a second at most
 
     def both(self, action):
+        """Do the same thing to both faces, e.g. pets.both(lambda f: f.set_mood(HAPPY))."""
         for f in self.faces:
             action(f)
 
@@ -169,7 +178,7 @@ def host_sequence(my_name, their_name):
     """What the two pets do together on the host's screen
     (host on the left, visitor on the right; the visitor's own screen stays blank)."""
     pets = TwoPets(my_name, their_name)
-    host, guest = pets.faces
+    host, guest = pets.faces  # left = our pet, right = the visitor
     pets.hold(ARRIVE_MS)
     host.set_mood(SURPRISED)
     guest.set_mood(LOVE)
@@ -184,7 +193,7 @@ def host_sequence(my_name, their_name):
     pets.hold(LAUGH_MS, laughing=True)
     pets.both(lambda f: f.set_mood(DEFAULT))
     pets.hold(BYE_MS)
-    del pets
+    del pets  # free the two faces' memory before pet mode carries on
 
 
 # ============================================================== visitor side
@@ -195,18 +204,18 @@ class Scan:
 
     def __init__(self):
         self.found = {}  # mac -> their pet index
-        self.last_scan = None
+        self.last_scan = None  # when we last shouted SCAN (None = never)
 
     def poll(self):
         now = time.ticks_ms()
         if self.last_scan is None or time.ticks_diff(now, self.last_scan) >= SCAN_EVERY_MS:
-            safe_send(BCAST, pack(SCAN))
+            safe_send(BCAST, pack(SCAN))  # to everyone in range
             self.last_scan = now
         while e.any():
             mac, msg = e.recv(0)
             kind, value = parse(msg)
             if kind == HERE and (mac in self.found or len(self.found) < MAX_FOUND):
-                self.found[mac] = value
+                self.found[mac] = value  # their pet's number
 
     def search(self, cancel, on_wait):
         """True if at least one keychain answered. LEFT (cancel) stops early."""
@@ -218,7 +227,7 @@ class Scan:
             if cancel():
                 log(INFO, "visit search cancelled")
                 return False
-            took = time.ticks_diff(time.ticks_ms(), start)
+            took = time.ticks_diff(time.ticks_ms(), start)  # ms since the search began
             if self.entries() and took >= SEARCH_MIN_MS:
                 return True
             if took >= SEARCH_MAX_MS:
@@ -238,39 +247,40 @@ class Scan:
 
 
 def asking_text():
+    """ "Asking" screen text: your ID; "asking" with growing dots."""
     me = my_id()
     return tuple(((me, 23), (w, 33)) for w in ("asking   ", "asking.  ", "asking.."))
 
 
 def ask(mac, my_idx, on_wait):
     """Ask mac for a visit. Returns "yes", "no" or "busy"."""
-    add_peer(mac)
-    drain()
+    add_peer(mac)  # so we can send to them directly
+    drain()  # old messages aren't answers to this question
     start = time.ticks_ms()
-    seen_at = None
-    last_ask = None
+    seen_at = None  # when SEEN arrived (None = not yet: they may be busy)
+    last_ask = None  # when we last sent ASK
     while True:
         now = time.ticks_ms()
         if seen_at is None:
             if time.ticks_diff(now, start) >= ASK_REPLY_MS:
                 return "busy"  # their radio is off (busy) or they're out of range
             if last_ask is None or time.ticks_diff(now, last_ask) >= ASK_EVERY_MS:
-                safe_send(mac, pack(ASK, my_idx))
+                safe_send(mac, pack(ASK, my_idx))  # "can I visit?", with our pet's number
                 last_ask = now
         elif time.ticks_diff(now, seen_at) >= ANSWER_WAIT_MS:
             return "no"  # heard us, but no answer came back
         while e.any():
             sender, msg = e.recv(0)
             if sender != mac:
-                continue
+                continue  # someone else: ignore
             kind, _ = parse(msg)
             if kind == SEEN and seen_at is None:
-                seen_at = now
+                seen_at = now  # they're asking their person now
             elif kind == YES:
                 return "yes"
             elif kind == NO:
                 return "no"
-        on_wait()
+        on_wait()  # move the "asking.." animation
         time.sleep_ms(20)
 
 
@@ -291,6 +301,7 @@ def visitor_sequence(mac):
 
 
 def note(text):
+    """A popup with just "ok" (closes on L + R or after 5 s)."""
     oled.fill(0)
     scroll(Popup(oled, text, ["ok"]))
     wait_release()
@@ -302,7 +313,7 @@ def find_friend():
     from games.shooter import search_text, pick_from_list, AGAIN  # same search screen and list
 
     scan = Scan()
-    cancel = lambda: left_btn.value() == 1
+    cancel = lambda: left_btn.value() == 1  # LEFT cancels the search
     while True:
         anim = loading_screen.Animation(text=search_text())
         try:
@@ -310,18 +321,18 @@ def find_friend():
         finally:
             anim.close()
         if not found:
-            return None
+            return None  # nobody found, or cancelled
         choice = pick_from_list(scan)
         wait_release()
         if choice is AGAIN:  # (not ==: choice may be a MAC, i.e. bytes)
-            scan.found.clear()
+            scan.found.clear()  # forget the old list and search afresh
             continue
-        return choice
+        return choice  # a mac, or None for "back" / timed out
 
 
 def visit(pet_mode):
     """The "Visit" menu item."""
-    my_idx = characters.NAMES.index(pet_mode.name)
+    my_idx = characters.NAMES.index(pet_mode.name)  # our pet's number, sent with ASK
     choice = find_friend()
     if choice is not None:
         who = short_id(choice)
@@ -339,4 +350,4 @@ def visit(pet_mode):
             note(who + " declined your visit")
     oled.fill(0)
     oled.show()
-    drain()
+    drain()  # anything left over from the visit

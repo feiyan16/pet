@@ -1,14 +1,18 @@
 # app.py - start-up: Wi-Fi driver first, then either the pet picker (first start)
 #           or the saved pet (every other start, including waking from deep sleep)
-import gc
+#
+# main.py imports this module, and importing it runs everything below from top
+# to bottom. It never returns: pet mode loops forever, and the first start ends
+# in a deep sleep that restarts the board into pet mode.
+import gc  # gc.collect(): free memory that's no longer used, so big imports fit
 import connect  # Wi-Fi driver first, while system memory is free
 
 gc.collect()
 
-import errno
-import json
-import machine
-import time
+import errno  # error numbers, e.g. ENOENT = "no such file"
+import json  # reads the saved pet (pet.json)
+import machine  # reset_cause(), deepsleep()
+import time  # sleep_ms
 from peripherals import oled, OLED_H
 from utils import centred, wait_release
 from ui import loading_screen  # small: its frames are read from flash only while it plays
@@ -16,7 +20,7 @@ from ui import loading_screen  # small: its frames are read from flash only whil
 gc.collect()
 from logger import log, log_exception, INFO, WARN, log_boot
 
-cause = log_boot()
+cause = log_boot()  # why we started (power on, deep sleep wake...), also written to the log
 
 
 HELLO_TEXT = "hello!"
@@ -32,13 +36,13 @@ INSTRUCTIONS_MS = 3000
 
 def show_instructions(lines=INSTRUCTIONS, ms=INSTRUCTIONS_MS):
     """Centred lines, 12 px apart, in the middle of the screen, for ms milliseconds."""
-    y = (OLED_H - (len(lines) * 12 - 4)) // 2
+    y = (OLED_H - (len(lines) * 12 - 4)) // 2  # top of the first line, so the block is centred
     for line in lines:
         centred(line, y)
-        y += 12
+        y += 12  # 8 px of text + 4 px gap
     oled.show()
     time.sleep_ms(ms)
-    oled.fill(0)
+    oled.fill(0)  # clear before the picker starts
     oled.show()
 
 
@@ -51,16 +55,18 @@ def read_pet_json():
         if err.args[0] == errno.ENOENT:  # no file yet: first start
             log(INFO, "no pet.json: first start")
             return None
-        raise
+        raise  # any other file error is a real problem: let it show
 
 
 def face_from_json(text):
     """The saved face, or None if pet.json is damaged or outdated."""
     from roboface.roboface import RoboFace, HalfMoonFace, CyclopsFace  # the .mpy: no compiling
 
+    # pet.json says which class made the face; this turns that name back into the class
     classes = {"RoboFace": RoboFace, "HalfMoonFace": HalfMoonFace, "CyclopsFace": CyclopsFace}
     try:
-        cls = classes[json.loads(text)["class"]]
+        cls = classes[json.loads(text)["class"]]  # KeyError if the class is unknown
+        # rebuild the face from the saved settings; it draws on the OLED and shows each frame
         return cls.from_json(text, oled, on_show=lambda face: oled.show())
     except (ValueError, KeyError) as err:  # damaged or outdated file: choose again
         log(WARN, "pet.json unusable:", repr(err))
@@ -150,8 +156,9 @@ def pet_mode_loading():
     yield
 
 
-pet_text = read_pet_json()
-pet_face = face_from_json(pet_text) if pet_text is not None else None
+# ---- start-up begins here
+pet_text = read_pet_json()  # None on the first start
+pet_face = face_from_json(pet_text) if pet_text is not None else None  # None: choose a pet
 gc.collect()
 
 
@@ -172,14 +179,15 @@ if pet_face is None:
     from pet.choose_pet import ChoosePet
 
     gc.collect()
-    # 3. How to choose, for 5s; then choose the pet, then restart into pet mode.
+    # 3. How to choose, for 3 s (INSTRUCTIONS_MS); then choose the pet, then restart into pet mode.
     show_instructions()
     wait_release()  # a finger still down isn't a choice
     ChoosePet().run()
     log(INFO, "pet chosen, restarting into pet mode")
-    oled.poweroff()
-    machine.deepsleep(3000)  # restart into pet mode after 3 s
+    oled.poweroff()  # screen off while asleep
+    machine.deepsleep(3000)  # restart into pet mode after 3 s (the board restarts from main.py)
 else:
+    # a pet exists. Only a real power-on (not waking from deep sleep) gets the "hello!" screen.
     if cause == machine.PWRON_RESET:
         loading_screen.run(text=HELLO_TEXT, intro_text=TYPED_HELLO, pause_ms=HELLO_PAUSE_MS)
 
@@ -190,10 +198,10 @@ else:
     from pet.pet_mode import PetMode  # already loaded: instant
 
     gc.collect()
-    app = PetMode(pet_face)
+    app = PetMode(pet_face)  # (this name shadows the module name "app"; fine, it's only used here)
     try:
         app.wake()  # groggy wake-up animation
-        app.run()
+        app.run()  # the pet's main loop: never returns
     except Exception as err:
         log_exception(err, "pet mode crashed")
         raise
